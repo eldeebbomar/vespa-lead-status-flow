@@ -1,0 +1,1840 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Lead Status Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@87.5..112.5,400..700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one centred column (max 1180px). Masthead, a sticky Before/After switch that drives both
+   figures, two diagram panels drawn 1:1 in SVG (each scrolls sideways inside its own panel when the
+   screen is narrower than the drawing), then a quiet footer with the open decisions and the source.
+   Every number on the page is read from the JSON block at the bottom; none is typed here. */
+:root {
+  /* surfaces and ink: cool neutrals with a slight blue bias */
+  --bg: #f2f4f7;
+  --surface: #fbfcfd;
+  --ink: #111821;
+  --ink-2: #46505c;
+  --muted: #66717e;
+  --rule: #dde2e8;
+  --rule-2: #c3cbd4;
+  --route: #8b95a2;
+  --focus: #2a78d6;
+  --on-warn: #ffffff;
+  --shadow: #0e141c2e;
+  /* lead status palette, shared by both figures: one blue ramp for the marketing stages
+     (Lead lightest, High Intent darkest), amber for sales stages, aqua for Partner,
+     stone for Unqualified, grey for no status. Red is reserved for backward moves. */
+  --st-lead: #86b6ef;
+  --st-ate: #3987e5;
+  --st-eng: #1c5cab;
+  --st-hil: #0d366b;
+  --st-sales: #eda100;
+  --st-partner: #1baf7a;
+  --st-unq: #8c8178;
+  --st-none: #a7afb9;
+  --warn: #d03b3b;
+  --link-op: 0.42;
+  --tint: 16%;
+  --font-ui: "Archivo", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1217;
+    --surface: #151a21;
+    --ink: #e8edf3;
+    --ink-2: #b3bcc7;
+    --muted: #858f9c;
+    --rule: #252c36;
+    --rule-2: #36414e;
+    --route: #6c7786;
+    --focus: #6da7ec;
+    --shadow: #0000007a;
+    --st-lead: #184f95;
+    --st-ate: #2a78d6;
+    --st-eng: #6da7ec;
+    --st-hil: #b7d3f6;
+    --st-sales: #c98500;
+    --st-partner: #199e70;
+    --st-unq: #938a80;
+    --st-none: #5a636f;
+    --link-op: 0.58;
+    --tint: 26%;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1217;
+  --surface: #151a21;
+  --ink: #e8edf3;
+  --ink-2: #b3bcc7;
+  --muted: #858f9c;
+  --rule: #252c36;
+  --rule-2: #36414e;
+  --route: #6c7786;
+  --focus: #6da7ec;
+  --shadow: #0000007a;
+  --st-lead: #184f95;
+  --st-ate: #2a78d6;
+  --st-eng: #6da7ec;
+  --st-hil: #b7d3f6;
+  --st-sales: #c98500;
+  --st-partner: #199e70;
+  --st-unq: #938a80;
+  --st-none: #5a636f;
+  --link-op: 0.58;
+  --tint: 26%;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 1180px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 40px);
+  padding-block: 28px 56px;
+  display: grid;
+  gap: 20px;
+}
+.wrap > * { min-width: 0; }
+
+/* masthead */
+.eyebrow {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+h1 {
+  margin: 4px 0 6px;
+  font-size: clamp(28px, 3.4vw, 36px);
+  line-height: 1.08;
+  font-weight: 700;
+  font-stretch: 110%;
+  letter-spacing: -.012em;
+  text-wrap: balance;
+}
+.lede { margin: 0; max-width: 62ch; font-size: 16.5px; color: var(--ink-2); text-wrap: pretty; }
+.asof { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+
+/* the switch */
+.switchbar {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding-block: 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--rule);
+}
+.seg {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--rule-2);
+  border-radius: 9px;
+  background: var(--surface);
+}
+.seg button {
+  appearance: none;
+  margin: 0;
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink-2);
+  background: transparent;
+  cursor: pointer;
+}
+.seg button:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.seg button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.switch-note { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* panels */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding-block: 20px 22px;
+  padding-inline: clamp(14px, 2.4vw, 28px);
+}
+.panel-head h2 {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.25;
+  font-weight: 650;
+  font-stretch: 104%;
+  text-wrap: balance;
+}
+.sub { margin: 4px 0 0; max-width: 72ch; font-size: 14px; color: var(--ink-2); text-wrap: pretty; }
+.legend {
+  list-style: none;
+  margin: 14px 0 12px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.legend li { display: inline-flex; align-items: center; gap: 7px; }
+.legend .lead-in { color: var(--muted); }
+.sw { flex: none; width: 12px; height: 12px; border-radius: 3px; }
+.sw-LEAD { background: var(--st-lead); }
+.sw-ATE { background: var(--st-ate); }
+.sw-ENG { background: var(--st-eng); }
+.sw-HIL { background: var(--st-hil); }
+.sw-LOE { background: repeating-linear-gradient(135deg, var(--st-eng) 0 3px, var(--st-lead) 3px 6px); }
+.sw-PARTNER { background: var(--st-partner); }
+.sw-SALES { background: var(--st-sales); }
+.sw-UNQ { background: var(--st-unq); }
+.sw-NONE { background: var(--st-none); }
+.legend svg { display: block; overflow: visible; }
+.scroller { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
+.scroller svg { display: block; }
+.hint { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); }
+
+.takeaways {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+  max-width: 78ch;
+}
+.takeaways li { position: relative; padding-left: 18px; color: var(--ink-2); }
+.takeaways li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: .62em;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--rule-2);
+}
+.takeaways strong { color: var(--ink); font-weight: 650; }
+
+.tableview { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--rule); }
+.tableview summary { cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--ink-2); width: max-content; max-width: 100%; }
+.tableview summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+table { width: 100%; min-width: 640px; margin-top: 10px; border-collapse: collapse; font-size: 13px; }
+caption { caption-side: top; text-align: left; padding-bottom: 6px; font-size: 12.5px; color: var(--muted); }
+th, td { text-align: left; vertical-align: top; padding: 6px 12px 6px 0; border-bottom: 1px solid var(--rule); }
+thead th { font-size: 11.5px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+th.num, td.num { text-align: right; padding-right: 20px; font-variant-numeric: tabular-nums; }
+tr.band th { padding-top: 14px; font-size: 12px; font-weight: 650; color: var(--ink); border-bottom-color: var(--rule-2); }
+.cell-line { display: flex; justify-content: space-between; gap: 12px; max-width: 300px; }
+.cell-line span:last-child { font-variant-numeric: tabular-nums; color: var(--ink); }
+td { color: var(--ink-2); }
+
+.rule { margin: 16px 0 0; max-width: 84ch; font-size: 14px; color: var(--ink); }
+.rule .tag {
+  margin-right: 8px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.fail {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--warn);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warn) 8%, var(--surface));
+  color: var(--ink);
+}
+
+/* footer */
+.foot { display: grid; gap: 10px; padding-top: 6px; }
+.foot h2 { margin: 0; font-size: 17px; font-weight: 650; font-stretch: 104%; }
+.decide { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 72ch; color: var(--ink-2); }
+.decide li::marker { color: var(--muted); font-weight: 650; }
+.source {
+  margin: 10px 0 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* tooltip */
+.tip {
+  position: fixed;
+  z-index: 20;
+  left: 0;
+  top: 0;
+  max-width: 340px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 12.5px;
+  line-height: 1.45;
+  box-shadow: 0 6px 20px var(--shadow);
+  pointer-events: none;
+}
+.tip strong { font-weight: 700; }
+.tip .tip-head { font-weight: 600; margin-bottom: 2px; }
+
+/* ---- shared SVG text ---- */
+.sankey text, .moves text, .legend text { font-family: var(--font-ui); }
+
+/* ---- figure 1: the flow ---- */
+.sk-label { font-size: 12.5px; font-weight: 500; fill: var(--ink); }
+.sk-count { font-size: 12.5px; font-weight: 650; fill: var(--ink); font-variant-numeric: tabular-nums; }
+.sk-band { font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; fill: var(--muted); }
+.sk-band-n { letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+.sk-rule { stroke: var(--rule); stroke-width: 1px; }
+.sk-route { fill: var(--route); }
+.sk-node { outline: none; }
+.sk-node:focus-visible { stroke: var(--focus); stroke-width: 3px; }
+.lk { fill: none; stroke-opacity: var(--link-op); transition: stroke-opacity .15s ease; outline: none; }
+.lk:focus-visible { stroke-opacity: .9; }
+.f-HIL { fill: var(--st-hil); }        .s-HIL { stroke: var(--st-hil); }
+.f-ENG { fill: var(--st-eng); }        .s-ENG { stroke: var(--st-eng); }
+.f-LEAD { fill: var(--st-lead); }      .s-LEAD { stroke: var(--st-lead); }
+.f-ATE { fill: var(--st-ate); }        .s-ATE { stroke: var(--st-ate); }
+.f-PARTNER { fill: var(--st-partner); } .s-PARTNER { stroke: var(--st-partner); }
+.f-SALES { fill: var(--st-sales); }    .s-SALES { stroke: var(--st-sales); }
+.f-UNQ { fill: var(--st-unq); }        .s-UNQ { stroke: var(--st-unq); }
+.f-NONE { fill: var(--st-none); }      .s-NONE { stroke: var(--st-none); }
+/* LOE uses the hatch pattern, set as an SVG attribute in the script (no url() in CSS) */
+.hatch-a { fill: var(--st-eng); }
+.hatch-b { fill: none; stroke: var(--st-lead); stroke-width: 2.4px; }
+.sk-zero-tick { stroke: var(--rule-2); stroke-width: 2px; opacity: 0; }
+.sk-r.is-zero .sk-zero-tick { opacity: 1; }
+.sk-r.is-zero .sk-label, .sk-r.is-zero .sk-count { fill: var(--muted); }
+.sk-r.is-problem .sk-node { stroke: var(--warn); stroke-width: 2px; }
+.sk-r.is-problem .sk-label { font-weight: 700; }
+.sk-note { opacity: 0; transition: opacity .2s ease; }
+.sk-r.is-problem .sk-note { opacity: 1; }
+.sk-note-t { font-size: 11.5px; fill: var(--ink-2); }
+.wi-tri { fill: var(--warn); }
+.wi-bar { stroke: var(--on-warn); stroke-width: 1.4px; stroke-linecap: round; }
+.wi-dot { fill: var(--on-warn); }
+[data-state="before"] .lk.s-ATE { stroke-opacity: calc(var(--link-op) + .14); }
+.sankey.is-focusing .lk { stroke-opacity: .1; }
+.sankey.is-focusing .lk.is-hot { stroke-opacity: .88; }
+.sankey .sk-r .sk-node:focus-visible, .sankey .sk-node:focus-visible { stroke: var(--focus); stroke-width: 3px; }
+
+/* ---- figure 2: the moves ---- */
+.mv-head { font-size: 12px; font-weight: 650; fill: var(--ink); }
+.mv-head-sub { font-size: 11.5px; font-weight: 500; fill: var(--muted); }
+.mv-box { stroke-width: 1px; }
+.mv-box.k-LEAD { fill: color-mix(in srgb, var(--st-lead) var(--tint), var(--surface)); stroke: color-mix(in srgb, var(--st-lead) 62%, var(--surface)); }
+.mv-box.k-ATE { fill: color-mix(in srgb, var(--st-ate) var(--tint), var(--surface)); stroke: color-mix(in srgb, var(--st-ate) 62%, var(--surface)); }
+.mv-box.k-ENG { fill: color-mix(in srgb, var(--st-eng) var(--tint), var(--surface)); stroke: color-mix(in srgb, var(--st-eng) 62%, var(--surface)); }
+.mv-box.k-HIL { fill: color-mix(in srgb, var(--st-hil) var(--tint), var(--surface)); stroke: color-mix(in srgb, var(--st-hil) 62%, var(--surface)); }
+.mv-box.k-SALES { fill: color-mix(in srgb, var(--st-sales) var(--tint), var(--surface)); stroke: color-mix(in srgb, var(--st-sales) 62%, var(--surface)); }
+.mv-box.k-PARTNER { fill: color-mix(in srgb, var(--st-partner) var(--tint), var(--surface)); stroke: color-mix(in srgb, var(--st-partner) 62%, var(--surface)); }
+.mv-box.k-UNQ { fill: color-mix(in srgb, var(--st-unq) var(--tint), var(--surface)); stroke: color-mix(in srgb, var(--st-unq) 62%, var(--surface)); }
+.mv-title { font-size: 12.5px; font-weight: 600; fill: var(--ink); }
+.mv-count { font-size: 16px; font-weight: 700; fill: var(--ink); }
+.mv-cap { font-size: 10.5px; fill: var(--ink-2); }
+.mv-arrow { fill: none; stroke: var(--ink-2); stroke-width: 1.5px; stroke-linecap: round; stroke-linejoin: round; }
+.mv-arrow.is-strong { stroke: var(--ink); stroke-width: 2.2px; }
+.mv-arrow.is-warn { stroke: var(--warn); stroke-width: 2px; }
+.mv-arrow.is-muted { stroke: var(--muted); }
+.mv-arrow.is-dashed { stroke-dasharray: 5 4; }
+.mv-stub { fill: none; stroke: var(--ink-2); stroke-width: 1.5px; stroke-linecap: round; stroke-linejoin: round; }
+.mv-origin { fill: var(--ink); }
+.mv-cross { stroke: var(--ink-2); stroke-width: 1.6px; stroke-linecap: round; }
+.mv-lab text { font-size: 12px; fill: var(--ink-2); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+.mv-lab .num { font-size: 13.5px; font-weight: 700; fill: var(--ink); }
+.mv-lab .quiet { fill: var(--muted); }
+.mv-lab.is-muted text, .mv-lab.is-muted .num { fill: var(--muted); }
+.ah { fill: var(--ink-2); }
+.ah-strong { fill: var(--ink); }
+.ah-warn { fill: var(--warn); }
+.ah-muted { fill: var(--muted); }
+.st-layer { transition: opacity .24s ease, visibility .24s; }
+[data-state="before"] .st-after,
+[data-state="after"] .st-before { opacity: 0; visibility: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  .st-layer, .lk, .sk-note { transition: none; }
+}
+</style>
+</head>
+<body>
+<main class="wrap" id="lsf" data-state="before">
+  <header class="masthead">
+    <p class="eyebrow">Lead status redesign</p>
+    <h1>Lead Status Flow</h1>
+    <p class="lede">Where every contact created this year lands on lead status today, and where it would land under the proposed rules.</p>
+    <p class="asof" id="asof"></p>
+  </header>
+
+  <p class="fail" id="fail" role="alert" hidden></p>
+
+  <div class="switchbar">
+    <div class="seg" role="group" aria-label="Which rules to show">
+      <button type="button" id="show-before" data-state="before" aria-pressed="true">Before (today)</button>
+      <button type="button" id="show-after" data-state="after" aria-pressed="false">After (proposed)</button>
+    </div>
+    <p class="switch-note">Both figures follow this switch.</p>
+  </div>
+
+  <section class="panel" id="land" aria-labelledby="land-title">
+    <div class="panel-head">
+      <h2 id="land-title">Where new contacts land</h2>
+      <p class="sub">The first lead status of each contact created this year, by the route it came in on. Bar heights and band widths are drawn to scale. Hover or tab to any band for its count.</p>
+    </div>
+    <ul class="legend" id="land-legend" aria-label="Lead status colours, the same in both figures"></ul>
+    <div class="scroller" id="land-scroll">
+      <svg id="sankey" class="sankey" role="group" aria-labelledby="land-title">
+        <defs>
+          <pattern id="sk-hatch" patternUnits="userSpaceOnUse" width="6" height="6">
+            <rect width="6" height="6" class="hatch-a"/>
+            <path d="M-1,1 L1,-1 M0,6 L6,0 M5,7 L7,5" class="hatch-b"/>
+          </pattern>
+        </defs>
+        <g id="sankey-draw"></g>
+      </svg>
+    </div>
+    <p class="hint" id="land-hint" hidden>Scroll sideways to see the whole diagram.</p>
+    <ul class="takeaways" id="land-notes" aria-live="polite"></ul>
+    <details class="tableview">
+      <summary>Show these numbers as a table</summary>
+      <div class="scroller"><table id="land-table"></table></div>
+    </details>
+  </section>
+
+  <section class="panel" id="move" aria-labelledby="move-title">
+    <div class="panel-head">
+      <h2 id="move-title">How they move after that</h2>
+      <p class="sub" id="move-sub"></p>
+    </div>
+    <ul class="legend" id="move-legend" aria-label="Arrow styles"></ul>
+    <div class="scroller" id="move-scroll">
+      <svg id="moves" class="moves" role="img">
+        <defs>
+          <marker id="mv-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" class="ah"/></marker>
+          <marker id="mv-ah-strong" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" class="ah-strong"/></marker>
+          <marker id="mv-ah-warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" class="ah-warn"/></marker>
+          <marker id="mv-ah-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" class="ah-muted"/></marker>
+        </defs>
+        <g id="moves-draw"></g>
+      </svg>
+    </div>
+    <p class="hint" id="move-hint" hidden>Scroll sideways to see the whole diagram.</p>
+    <p class="rule" id="move-rule"></p>
+  </section>
+
+  <footer class="foot">
+    <h2>Still to decide</h2>
+    <ol class="decide">
+      <li>Go ahead with the design. It is built switched off and tested first.</li>
+      <li>Trial sign-ups stay out of the lead funnel.</li>
+      <li>A disqualified contact who raises a hand again comes back as High Intent Lead.</li>
+    </ol>
+    <p class="source" id="source"></p>
+  </footer>
+</main>
+
+<div class="tip" id="tip" role="tooltip" hidden></div>
+
+<script type="application/json" id="flow-data">{
+ "generated_at": "2026-10-09T19:43:13+00:00",
+ "as_of": "2026-10-09",
+ "population": "Contacts created 1 Jan - 9 Oct 2026",
+ "sources": {
+  "entry": {
+   "file": "w_entry/entry_paths.json",
+   "sha256_16": "ec3e9fde71ec53e0",
+   "rows": 5411,
+   "read": "2026-10-09 (entry-route census, read-only)"
+  },
+  "history": {
+   "file": "contacts_history.json",
+   "sha256_16": "75f83bb7b2ac2276",
+   "contacts": 21670,
+   "read": "2026-10-08 (status history of every contact, read-only)"
+  }
+ },
+ "total": 5411,
+ "groups": [
+  {
+   "id": "sales_ask",
+   "label": "Asked for sales",
+   "n": 91,
+   "design": "HIL"
+  },
+  {
+   "id": "content",
+   "label": "Downloaded content or asked for slides",
+   "n": 69,
+   "design": "ENG"
+  },
+  {
+   "id": "linkedin",
+   "label": "LinkedIn lead-gen ads",
+   "n": 33,
+   "design": "ENG"
+  },
+  {
+   "id": "attended",
+   "label": "Attended an event or visited the booth",
+   "n": 312,
+   "design": "ENG"
+  },
+  {
+   "id": "community",
+   "label": "Joined the Slack community",
+   "n": 55,
+   "design": "ENG"
+  },
+  {
+   "id": "syndication",
+   "label": "EM360 syndication lists",
+   "n": 297,
+   "design": "LOE"
+  },
+  {
+   "id": "registered",
+   "label": "Registered for a webinar",
+   "n": 797,
+   "design": "LEAD"
+  },
+  {
+   "id": "newsletter",
+   "label": "Newsletter sign-up",
+   "n": 158,
+   "design": "LEAD"
+  },
+  {
+   "id": "delegates",
+   "label": "Opt-in delegate list",
+   "n": 320,
+   "design": "LEAD"
+  },
+  {
+   "id": "partner",
+   "label": "Become a Partner form",
+   "n": 7,
+   "design": "PARTNER"
+  },
+  {
+   "id": "sdr",
+   "label": "Sellerate SDRs, at meeting booking",
+   "n": 133,
+   "design": null
+  },
+  {
+   "id": "sales_other",
+   "label": "AE prospecting, email logging, manual",
+   "n": 1109,
+   "design": null
+  },
+  {
+   "id": "inbox",
+   "label": "Emails into the inbox",
+   "n": 19,
+   "design": null
+  },
+  {
+   "id": "trial",
+   "label": "Trial sign-ups",
+   "n": 1925,
+   "design": null
+  },
+  {
+   "id": "staff_test",
+   "label": "Vespa staff and test contacts",
+   "n": 86,
+   "design": "NONE"
+  }
+ ],
+ "nodes": {
+  "HIL": "High Intent Lead",
+  "ENG": "Engaged Lead",
+  "LOE": "Lead or Engaged, set on the import",
+  "LEAD": "Lead",
+  "ATE": "Attempting to Engage",
+  "PARTNER": "Partner",
+  "SALES": "A sales stage, set by people",
+  "UNQ": "Unqualified - Discarded",
+  "NONE": "No status"
+ },
+ "before": [
+  {
+   "group": "sales_ask",
+   "node": "ATE",
+   "n": 91
+  },
+  {
+   "group": "content",
+   "node": "ATE",
+   "n": 69
+  },
+  {
+   "group": "linkedin",
+   "node": "ATE",
+   "n": 11
+  },
+  {
+   "group": "linkedin",
+   "node": "ENG",
+   "n": 22
+  },
+  {
+   "group": "attended",
+   "node": "ATE",
+   "n": 299
+  },
+  {
+   "group": "attended",
+   "node": "LEAD",
+   "n": 5
+  },
+  {
+   "group": "attended",
+   "node": "NONE",
+   "n": 7
+  },
+  {
+   "group": "attended",
+   "node": "SALES",
+   "n": 1
+  },
+  {
+   "group": "community",
+   "node": "ATE",
+   "n": 53
+  },
+  {
+   "group": "community",
+   "node": "NONE",
+   "n": 2
+  },
+  {
+   "group": "syndication",
+   "node": "ATE",
+   "n": 282
+  },
+  {
+   "group": "syndication",
+   "node": "ENG",
+   "n": 15
+  },
+  {
+   "group": "registered",
+   "node": "ATE",
+   "n": 797
+  },
+  {
+   "group": "newsletter",
+   "node": "ATE",
+   "n": 158
+  },
+  {
+   "group": "delegates",
+   "node": "ATE",
+   "n": 320
+  },
+  {
+   "group": "partner",
+   "node": "NONE",
+   "n": 7
+  },
+  {
+   "group": "sdr",
+   "node": "ATE",
+   "n": 1
+  },
+  {
+   "group": "sdr",
+   "node": "SALES",
+   "n": 132
+  },
+  {
+   "group": "sales_other",
+   "node": "ATE",
+   "n": 24
+  },
+  {
+   "group": "sales_other",
+   "node": "ENG",
+   "n": 8
+  },
+  {
+   "group": "sales_other",
+   "node": "LEAD",
+   "n": 25
+  },
+  {
+   "group": "sales_other",
+   "node": "NONE",
+   "n": 1044
+  },
+  {
+   "group": "sales_other",
+   "node": "SALES",
+   "n": 8
+  },
+  {
+   "group": "inbox",
+   "node": "NONE",
+   "n": 19
+  },
+  {
+   "group": "trial",
+   "node": "ATE",
+   "n": 64
+  },
+  {
+   "group": "trial",
+   "node": "HIL",
+   "n": 5
+  },
+  {
+   "group": "trial",
+   "node": "NONE",
+   "n": 1856
+  },
+  {
+   "group": "staff_test",
+   "node": "ATE",
+   "n": 53
+  },
+  {
+   "group": "staff_test",
+   "node": "NONE",
+   "n": 33
+  }
+ ],
+ "after": [
+  {
+   "group": "sales_ask",
+   "node": "HIL",
+   "n": 91
+  },
+  {
+   "group": "content",
+   "node": "ENG",
+   "n": 69
+  },
+  {
+   "group": "linkedin",
+   "node": "ENG",
+   "n": 33
+  },
+  {
+   "group": "attended",
+   "node": "ENG",
+   "n": 311
+  },
+  {
+   "group": "attended",
+   "node": "SALES",
+   "n": 1
+  },
+  {
+   "group": "community",
+   "node": "ENG",
+   "n": 55
+  },
+  {
+   "group": "syndication",
+   "node": "LOE",
+   "n": 297
+  },
+  {
+   "group": "registered",
+   "node": "LEAD",
+   "n": 797
+  },
+  {
+   "group": "newsletter",
+   "node": "LEAD",
+   "n": 158
+  },
+  {
+   "group": "delegates",
+   "node": "LEAD",
+   "n": 320
+  },
+  {
+   "group": "partner",
+   "node": "PARTNER",
+   "n": 7
+  },
+  {
+   "group": "sdr",
+   "node": "ATE",
+   "n": 1
+  },
+  {
+   "group": "sdr",
+   "node": "SALES",
+   "n": 132
+  },
+  {
+   "group": "sales_other",
+   "node": "ATE",
+   "n": 24
+  },
+  {
+   "group": "sales_other",
+   "node": "ENG",
+   "n": 8
+  },
+  {
+   "group": "sales_other",
+   "node": "LEAD",
+   "n": 25
+  },
+  {
+   "group": "sales_other",
+   "node": "NONE",
+   "n": 1044
+  },
+  {
+   "group": "sales_other",
+   "node": "SALES",
+   "n": 8
+  },
+  {
+   "group": "inbox",
+   "node": "NONE",
+   "n": 19
+  },
+  {
+   "group": "trial",
+   "node": "ATE",
+   "n": 64
+  },
+  {
+   "group": "trial",
+   "node": "NONE",
+   "n": 1861
+  },
+  {
+   "group": "staff_test",
+   "node": "NONE",
+   "n": 86
+  }
+ ],
+ "before_ate_stamped_by_automation": 2019,
+ "node_totals_before": {
+  "NONE": 2968,
+  "ATE": 2222,
+  "LEAD": 30,
+  "SALES": 141,
+  "HIL": 5,
+  "ENG": 45
+ },
+ "node_totals_after": {
+  "NONE": 3010,
+  "LEAD": 1300,
+  "ENG": 476,
+  "HIL": 91,
+  "ATE": 89,
+  "SALES": 141,
+  "LOE": 297,
+  "PARTNER": 7
+ },
+ "moves_2026": {
+  "auto_to_ate_total": 2056,
+  "auto_to_ate_first_status": 2019,
+  "auto_engaged_to_ate": 37,
+  "auto_to_hil_total": 234,
+  "auto_customer_to_hil": 2,
+  "auto_to_engaged_total": 2,
+  "auto_backward_total": 39,
+  "our_app_ate_to_lead": 389,
+  "people_to": {
+   "Attempting to Contact": 68,
+   "Attempting to Schedule Intro": 13,
+   "Intro Call Scheduled": 137,
+   "Sales Qualified Lead": 84,
+   "Sales Accepted Lead": 3,
+   "UNQUALIFIED": 121
+  },
+  "auto_to_sales_stages": 0,
+  "meeting_outcomes_recorded": 0
+ },
+ "gates_passed": [
+  "G1 sums",
+  "G2/G3 every route mapped",
+  "G4 every status has a node",
+  "G5 5,411 rows",
+  "G6 bound to live re-reads",
+  "G7 two reads agree",
+  "G8 0 outcomes",
+  "G9 Customer overwrite present"
+ ]
+}</script>
+<script>
+(function () {
+  'use strict';
+
+  const page = document.getElementById('lsf');
+  const D = JSON.parse(document.getElementById('flow-data').textContent);
+  const NS = 'http://www.w3.org/2000/svg';
+  const FONT = '"Archivo", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+
+  // Status nodes, top to bottom in the flow. UNQ is drawn only when a route lands on it.
+  const NODE_ORDER = ['HIL', 'ENG', 'LOE', 'LEAD', 'ATE', 'PARTNER', 'SALES', 'UNQ', 'NONE'];
+  // The legend reads in funnel order, lightest marketing stage first.
+  const LEGEND_ORDER = ['LEAD', 'ATE', 'ENG', 'HIL', 'LOE', 'SALES', 'PARTNER', 'UNQ', 'NONE'];
+  // Every people_to key the second figure shows. The build refuses to write if this list
+  // and the JSON disagree, so no count set by people can drop off the page unnoticed.
+  const PEOPLE_KEYS = ['Attempting to Contact', 'Attempting to Schedule Intro', 'Intro Call Scheduled',
+    'Sales Qualified Lead', 'Sales Accepted Lead', 'UNQUALIFIED'];
+  const BAND_NAME = { mkt: 'Marketing routes', sales: 'Sales and product routes', never: 'Should never be in the funnel' };
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const M = D.moves_2026;
+  const reduceMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  let state = 'before';
+
+  // ---------- data access ----------
+  function mv(key) {
+    if (!(key in M)) throw new Error('moves_2026 has no "' + key + '"');
+    return M[key];
+  }
+  function pp(key) {
+    if (!(key in M.people_to)) throw new Error('people_to has no "' + key + '"');
+    return M.people_to[key];
+  }
+  const TOT = { before: D.node_totals_before, after: D.node_totals_after };
+  const FLOWS = { before: D.before, after: D.after };
+  const nt = (s, id) => TOT[s][id] || 0;
+  const flowN = (s, g, nd) => { const f = FLOWS[s].find(x => x.group === g && x.node === nd); return f ? f.n : 0; };
+  const GROUP = {};
+  D.groups.forEach((g, i) => { GROUP[g.id] = Object.assign({ i: i }, g); });
+  function grp(id) {
+    if (!GROUP[id]) throw new Error('no route group "' + id + '"');
+    return GROUP[id];
+  }
+  const bandOf = g => g.design === null ? 'sales' : (g.design === 'NONE' ? 'never' : 'mkt');
+  const fmt = n => Number(n).toLocaleString('en-GB');
+  const label = id => D.nodes[id] || id;
+  function fmtDate(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ''));
+    return m ? `${Number(m[3])} ${MON[Number(m[2]) - 1]} ${m[1]}` : String(s);
+  }
+  function fmtStamp(s) {
+    const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(String(s || ''));
+    if (!m || !/(\+00:00|Z)$/.test(String(s))) return String(s);
+    return `${fmtDate(m[1])}, ${m[2]} UTC`;
+  }
+
+  const USED = new Set(D.before.concat(D.after).map(f => f.node));
+  const NODES = NODE_ORDER.filter(id => USED.has(id));
+  const UNKNOWN = Array.from(USED).filter(id => NODE_ORDER.indexOf(id) < 0);
+  // every route -> status pair seen in either state, so a band can grow from or shrink to nothing
+  const KEYS = [];
+  (function () {
+    const seen = new Set();
+    D.before.concat(D.after).forEach(f => {
+      const k = f.group + '|' + f.node;
+      if (!seen.has(k)) { seen.add(k); KEYS.push({ k: k, g: f.group, nd: f.node }); }
+    });
+  })();
+
+  // ---------- measuring and drawing helpers ----------
+  const cv = document.createElement('canvas').getContext('2d');
+  function textW(s, size, weight) {
+    cv.font = weight + ' ' + size + 'px ' + FONT;
+    return cv.measureText(String(s)).width;
+  }
+  function wrapText(s, maxW, size, weight) {
+    const out = [];
+    let line = '';
+    String(s).split(' ').forEach(w => {
+      const t = line ? line + ' ' + w : w;
+      if (line && textW(t, size, weight) > maxW) { out.push(line); line = w; } else { line = t; }
+    });
+    if (line) out.push(line);
+    return out;
+  }
+  // the same number of lines as wrapText, at the narrowest width that keeps it: balanced lines,
+  // so a label never ends on one stranded word
+  function wrapBalanced(s, maxW, size, weight) {
+    const base = wrapText(s, maxW, size, weight);
+    if (base.length < 2) return base;
+    let lo = 0, hi = maxW;
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) / 2;
+      if (wrapText(s, mid, size, weight).length > base.length) lo = mid; else hi = mid;
+    }
+    return wrapText(s, hi, size, weight);
+  }
+  const HATCH = 'url(#sk-hatch)';
+  const r1 = v => Math.round(v * 10) / 10;
+  const vb = (w, h) => [0, 0, r1(w), r1(h)].join(' ');
+  const tr = (x, y) => `translate(${r1(x)},${r1(y)})`;
+  function el(name, attrs, parent) {
+    const e = document.createElementNS(NS, name);
+    if (attrs) Object.keys(attrs).forEach(k => { if (attrs[k] !== null && attrs[k] !== undefined) e.setAttribute(k, attrs[k]); });
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function text(parent, x, y, s, cls, anchor) {
+    const t = el('text', { x: r1(x), y: r1(y), class: cls || null, 'text-anchor': anchor || null }, parent);
+    t.textContent = s;
+    return t;
+  }
+  const ICON_W = 16;
+  function warnIcon(parent, cx, cy) {
+    const s = 5.6;
+    const g = el('g', { 'aria-hidden': 'true' }, parent);
+    el('path', { d: `M${r1(cx)},${r1(cy - s)} L${r1(cx + s * 1.12)},${r1(cy + s * 0.86)} L${r1(cx - s * 1.12)},${r1(cy + s * 0.86)} Z`, class: 'wi-tri' }, g);
+    el('path', { d: `M${r1(cx)},${r1(cy - s * 0.4)} L${r1(cx)},${r1(cy + s * 0.2)}`, class: 'wi-bar' }, g);
+    el('circle', { cx: r1(cx), cy: r1(cy + s * 0.55), r: 0.9, class: 'wi-dot' }, g);
+    return g;
+  }
+  // an orthogonal path with rounded corners through the given points
+  function ortho(pts, rad) {
+    let d = `M${r1(pts[0][0])},${r1(pts[0][1])}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const [px, py] = pts[i - 1], [x, y] = pts[i], [nx, ny] = pts[i + 1];
+      const a = Math.min(rad, Math.hypot(x - px, y - py) / 2), b = Math.min(rad, Math.hypot(nx - x, ny - y) / 2);
+      const ax = x - Math.sign(x - px) * a, ay = y - Math.sign(y - py) * a;
+      const bx = x + Math.sign(nx - x) * b, by = y + Math.sign(ny - y) * b;
+      d += ` L${r1(ax)},${r1(ay)} Q${r1(x)},${r1(y)} ${r1(bx)},${r1(by)}`;
+    }
+    const last = pts[pts.length - 1];
+    return d + ` L${r1(last[0])},${r1(last[1])}`;
+  }
+
+  // ---------- tooltip ----------
+  const tip = document.getElementById('tip');
+  function showTip(rows, x, y) {
+    tip.replaceChildren();
+    rows.forEach(r => {
+      const d = document.createElement('div');
+      if (r.head) d.className = 'tip-head';
+      const a = document.createElement('span');
+      a.textContent = r.k + ' ';
+      const b = document.createElement('strong');
+      b.textContent = fmt(r.n);
+      d.append(a, b);
+      tip.appendChild(d);
+    });
+    tip.hidden = false;
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    const vw = document.documentElement.clientWidth, vh = window.innerHeight;
+    let px = x + 16, py = y + 16;
+    if (px + w > vw - 8) px = Math.max(8, x - w - 16);
+    if (py + h > vh - 8) py = Math.max(8, y - h - 16);
+    tip.style.transform = `translate(${Math.round(px)}px, ${Math.round(py)}px)`;
+  }
+  function hideTip() { tip.hidden = true; }
+
+  // =====================================================================================
+  // Figure 1: where new contacts land (a Sankey drawn to scale)
+  // =====================================================================================
+  const SK = { fs: 12.5, bar: 10, slot: 18, minBar: 2, gap: 4, bandGap: 16, head: 26, maxGap: 40, note: 18, minW: 760, dataH: 470, padR: 2 };
+  let SKG = null, SKS = null, SKCUR = null, skEls = null, skAnim = 0;
+
+  function ateNote() { return `${fmt(D.before_ate_stamped_by_automation)} stamped by a workflow`; }
+
+  function sankeyGeo(W) {
+    const bandTotals = {};
+    D.groups.forEach(g => { const b = bandOf(g); bandTotals[b] = (bandTotals[b] || 0) + g.n; });
+    const gLabW = Math.max(...D.groups.map(g => textW(g.label, SK.fs, 500)));
+    const gCntW = Math.max(...D.groups.map(g => textW(fmt(g.n), SK.fs, 650)),
+      ...Object.keys(bandTotals).map(b => textW(fmt(bandTotals[b]), SK.fs, 650))) + 4;
+    const xCnt = gLabW + 12 + gCntW;
+    const xB0 = xCnt + 10, xB1 = xB0 + SK.bar;
+    const rLabW = Math.max(...NODES.map(id => textW(label(id), SK.fs, 700)), ICON_W + textW(ateNote(), SK.fs, 500));
+    const rCntW = Math.max(...NODES.map(id => Math.max(textW(fmt(nt('before', id)), SK.fs, 650), textW(fmt(nt('after', id)), SK.fs, 650)))) + 4;
+    const xRT = W - SK.padR - rLabW;
+    const xRC = xRT - 8;
+    const xR1 = xRC - rCntW - 10, xR0 = xR1 - SK.bar;
+    const k = SK.dataH / D.total;
+    const L = {}, bands = [];
+    let y = 0, prev = null;
+    D.groups.forEach(g => {
+      const b = bandOf(g);
+      if (b !== prev) {
+        if (prev !== null) y += SK.bandGap;
+        bands.push({ b: b, y: y, total: bandTotals[b] });
+        y += SK.head;
+        prev = b;
+      } else {
+        y += SK.gap;
+      }
+      const h = Math.max(g.n * k, SK.minBar);
+      const slot = Math.max(h, SK.slot);
+      L[g.id] = { top: y + (slot - h) / 2, h: h, cy: y + slot / 2 };
+      y += slot;
+    });
+    return { W: W, H: y + 6, k: k, xCnt: xCnt, xB0: xB0, xB1: xB1, xR0: xR0, xR1: xR1, xRC: xRC, xRT: xRT, L: L, bands: bands };
+  }
+
+  function sankeyState(G, s) {
+    const items = NODES.map(id => {
+      const n = nt(s, id);
+      const h = n > 0 ? Math.max(n * G.k, SK.minBar) : 0;
+      const extra = (s === 'before' && id === 'ATE') ? SK.note : 0;
+      return { id: id, n: n, h: h, slot: Math.max(h, SK.slot + extra) };
+    });
+    const sum = items.reduce((a, it) => a + it.slot, 0);
+    const room = G.H - 6 - sum;
+    const gap = Math.max(SK.gap, Math.min(SK.maxGap, room / Math.max(1, items.length - 1)));
+    const used = sum + gap * (items.length - 1);
+    let y = Math.max(0, (G.H - 6 - used) / 2);
+    const R = {};
+    items.forEach(it => {
+      R[it.id] = { top: y + (it.slot - it.h) / 2, h: it.h, cy: y + it.slot / 2, n: it.n };
+      y += it.slot + gap;
+    });
+    const nOf = {};
+    FLOWS[s].forEach(f => { nOf[f.group + '|' + f.node] = f.n; });
+    const lk = {};
+    D.groups.forEach(g => {
+      const src = G.L[g.id];
+      let cum = 0;
+      KEYS.filter(x => x.g === g.id)
+        .sort((a, b) => NODE_ORDER.indexOf(a.nd) - NODE_ORDER.indexOf(b.nd))
+        .forEach(x => {
+          const n = nOf[x.k] || 0;
+          const w = src.h * n / g.n;
+          lk[x.k] = { n: n, w: w, y0: src.top + src.h * cum / g.n + w / 2 };
+          cum += n;
+        });
+    });
+    NODES.forEach(id => {
+      const r = R[id];
+      let cum = 0;
+      KEYS.filter(x => x.nd === id)
+        .sort((a, b) => GROUP[a.g].i - GROUP[b.g].i)
+        .forEach(x => {
+          const n = nOf[x.k] || 0;
+          const w1 = r.n > 0 ? r.h * n / r.n : 0;
+          lk[x.k].y1 = r.top + (r.n > 0 ? r.h * cum / r.n : 0) + w1 / 2;
+          cum += n;
+        });
+    });
+    return { R: R, lk: lk };
+  }
+
+  function mixState(a, b, t) {
+    const lerp = (p, q) => p + (q - p) * t;
+    const out = { R: {}, lk: {} };
+    NODES.forEach(id => {
+      const p = a.R[id], q = b.R[id];
+      out.R[id] = { top: lerp(p.top, q.top), h: lerp(p.h, q.h), cy: lerp(p.cy, q.cy) };
+    });
+    KEYS.forEach(x => {
+      const p = a.lk[x.k], q = b.lk[x.k];
+      out.lk[x.k] = { w: lerp(p.w, q.w), y0: lerp(p.y0, q.y0), y1: lerp(p.y1, q.y1) };
+    });
+    return out;
+  }
+
+  function applySankey(S) {
+    const G = SKG;
+    const xm = (G.xB1 + G.xR0) / 2;
+    KEYS.forEach(x => {
+      const L = S.lk[x.k], p = skEls.links[x.k];
+      p.setAttribute('d', `M${r1(G.xB1)},${r1(L.y0)} C${r1(xm)},${r1(L.y0)} ${r1(xm)},${r1(L.y1)} ${r1(G.xR0)},${r1(L.y1)}`);
+      p.setAttribute('stroke-width', L.w > 0.05 ? r1(Math.max(L.w, 1)) : 0);
+    });
+    NODES.forEach(id => {
+      const r = S.R[id], e = skEls.nodes[id];
+      e.bar.setAttribute('y', r1(r.top));
+      e.bar.setAttribute('height', r1(Math.max(r.h, 0)));
+      e.tick.setAttribute('y1', r1(r.cy));
+      e.tick.setAttribute('y2', r1(r.cy));
+      e.lab.setAttribute('transform', tr(0, r.cy));
+    });
+    SKCUR = S;
+  }
+
+  function sankeyTexts(s) {
+    NODES.forEach(id => {
+      const e = skEls.nodes[id], n = nt(s, id);
+      e.cnt.textContent = fmt(n);
+      e.g.classList.toggle('is-zero', n === 0);
+      e.g.classList.toggle('is-problem', s === 'before' && id === 'ATE');
+      e.bar.setAttribute('aria-label', `${label(id)}: ${fmt(n)} contacts`);
+      e.bar.setAttribute('tabindex', n > 0 ? 0 : -1);
+    });
+    KEYS.forEach(x => {
+      const n = flowN(s, x.g, x.nd), p = skEls.links[x.k];
+      if (n > 0) {
+        p.setAttribute('tabindex', 0);
+        p.setAttribute('role', 'img');
+        p.setAttribute('aria-label', `${GROUP[x.g].label} → ${label(x.nd)}: ${fmt(n)}`);
+        p.removeAttribute('aria-hidden');
+      } else {
+        p.setAttribute('tabindex', -1);
+        p.setAttribute('aria-hidden', 'true');
+        p.removeAttribute('aria-label');
+      }
+    });
+  }
+
+  function renderSankey() {
+    const scroller = document.getElementById('land-scroll');
+    const W = Math.max(Math.floor(scroller.clientWidth), SK.minW);
+    const G = sankeyGeo(W);
+    SKG = G;
+    const svg = document.getElementById('sankey');
+    const host = document.getElementById('sankey-draw');
+    host.replaceChildren();
+    svg.setAttribute('viewBox', vb(W, G.H));
+    svg.setAttribute('width', r1(W));
+    svg.setAttribute('height', r1(G.H));
+
+    G.bands.forEach(bd => {
+      text(host, 0, bd.y + 16, BAND_NAME[bd.b], 'sk-band');
+      text(host, G.xCnt, bd.y + 16, fmt(bd.total), 'sk-band sk-band-n', 'end');
+      el('line', { x1: 0, x2: r1(G.xB1), y1: r1(bd.y + 21.5), y2: r1(bd.y + 21.5), class: 'sk-rule' }, host);
+    });
+
+    const links = {}, nodes = {};
+    D.groups.forEach(g => {
+      const P = G.L[g.id];
+      const gg = el('g', null, host);
+      text(gg, 0, P.cy + 4.4, g.label, 'sk-label');
+      text(gg, G.xCnt, P.cy + 4.4, fmt(g.n), 'sk-count', 'end');
+      el('rect', { x: r1(G.xB0), y: r1(P.top), width: SK.bar, height: r1(P.h), rx: 1.5, class: 'sk-node sk-route',
+        tabindex: 0, role: 'img', 'data-g': g.id, 'aria-label': `${g.label}: ${fmt(g.n)} contacts` }, gg);
+      KEYS.filter(x => x.g === g.id)
+        .sort((a, b) => NODE_ORDER.indexOf(a.nd) - NODE_ORDER.indexOf(b.nd))
+        .forEach(x => {
+          links[x.k] = el('path', { class: x.nd === 'LOE' ? 'lk' : 'lk s-' + x.nd, stroke: x.nd === 'LOE' ? HATCH : null, 'data-k': x.k }, gg);
+        });
+    });
+
+    const right = el('g', null, host);
+    NODES.forEach(id => {
+      const g = el('g', { class: 'sk-r' }, right);
+      const tick = el('line', { x1: r1(G.xR0), x2: r1(G.xR1), class: 'sk-zero-tick' }, g);
+      const bar = el('rect', { x: r1(G.xR0), width: SK.bar, rx: 1.5, class: id === 'LOE' ? 'sk-node' : 'sk-node f-' + id,
+        fill: id === 'LOE' ? HATCH : null, role: 'img', 'data-nd': id }, g);
+      const lab = el('g', null, g);
+      const cnt = text(lab, G.xRC, 4.4, '', 'sk-count', 'end');
+      text(lab, G.xRT, 4.4, label(id), 'sk-label');
+      if (id === 'ATE') {
+        const note = el('g', { class: 'sk-note' }, lab);
+        warnIcon(note, G.xRT + 6, 17.6);
+        text(note, G.xRT + ICON_W, 21.5, ateNote(), 'sk-note-t');
+      }
+      nodes[id] = { g: g, bar: bar, tick: tick, lab: lab, cnt: cnt };
+    });
+    skEls = { links: links, nodes: nodes };
+    sankeyTexts(state);
+    SKS = sankeyState(G, state);
+    applySankey(SKS);
+  }
+
+  function animateSankey(to) {
+    cancelAnimationFrame(skAnim);
+    const from = SKCUR || to;
+    const t0 = performance.now(), dur = 380;
+    const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    const step = now => {
+      const p = Math.min(1, (now - t0) / dur);
+      applySankey(p < 1 ? mixState(from, to, ease(p)) : to);
+      if (p < 1) skAnim = requestAnimationFrame(step);
+    };
+    skAnim = requestAnimationFrame(step);
+  }
+
+  // hover and focus
+  function skInfo(t) {
+    if (!t) return null;
+    if (t.dataset.k) {
+      const x = KEYS.find(q => q.k === t.dataset.k);
+      const n = flowN(state, x.g, x.nd);
+      if (!n) return null;
+      return { keys: new Set([x.k]), rows: [{ k: `${GROUP[x.g].label} → ${label(x.nd)}:`, n: n }] };
+    }
+    if (t.dataset.g) {
+      const g = GROUP[t.dataset.g];
+      const ks = KEYS.filter(x => x.g === g.id && flowN(state, x.g, x.nd) > 0)
+        .sort((a, b) => NODE_ORDER.indexOf(a.nd) - NODE_ORDER.indexOf(b.nd));
+      return { keys: new Set(ks.map(x => x.k)),
+        rows: [{ k: `${g.label}:`, n: g.n, head: true }].concat(ks.map(x => ({ k: `→ ${label(x.nd)}:`, n: flowN(state, x.g, x.nd) }))) };
+    }
+    if (t.dataset.nd) {
+      const id = t.dataset.nd, n = nt(state, id);
+      if (!n) return null;
+      const ks = KEYS.filter(x => x.nd === id && flowN(state, x.g, x.nd) > 0)
+        .sort((a, b) => flowN(state, b.g, b.nd) - flowN(state, a.g, a.nd));
+      return { keys: new Set(ks.map(x => x.k)),
+        rows: [{ k: `${label(id)}:`, n: n, head: true }].concat(ks.map(x => ({ k: `${GROUP[x.g].label}:`, n: flowN(state, x.g, x.nd) }))) };
+    }
+    return null;
+  }
+  function skHot(keys) {
+    const svg = document.getElementById('sankey');
+    svg.classList.toggle('is-focusing', !!keys);
+    KEYS.forEach(x => skEls.links[x.k].classList.toggle('is-hot', !!keys && keys.has(x.k)));
+  }
+  function skEnd() { skHot(null); hideTip(); }
+  function skTarget(e) { return e.target && e.target.closest ? e.target.closest('[data-k], [data-g], [data-nd]') : null; }
+  (function wireSankey() {
+    const svg = document.getElementById('sankey');
+    const onPoint = e => {
+      const info = skInfo(skTarget(e));
+      if (!info) { skEnd(); return; }
+      skHot(info.keys);
+      showTip(info.rows, e.clientX, e.clientY);
+    };
+    svg.addEventListener('pointermove', onPoint);
+    svg.addEventListener('pointerdown', onPoint);
+    svg.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') skEnd(); });
+    document.addEventListener('pointerdown', e => { if (!svg.contains(e.target)) skEnd(); });
+    svg.addEventListener('focusin', e => {
+      const t = skTarget(e), info = skInfo(t);
+      if (!info) { skEnd(); return; }
+      skHot(info.keys);
+      let x, y;
+      if (t.dataset.k && t.getTotalLength) {
+        const len = t.getTotalLength(), pt = t.getPointAtLength(len / 2), m = t.getScreenCTM();
+        x = pt.x * m.a + pt.y * m.c + m.e;
+        y = pt.x * m.b + pt.y * m.d + m.f;
+      } else {
+        const r = t.getBoundingClientRect();
+        x = r.right;
+        y = r.top + r.height / 2;
+      }
+      showTip(info.rows, x, y);
+    });
+    svg.addEventListener('focusout', skEnd);
+  })();
+
+  // =====================================================================================
+  // Figure 2: how they move after that
+  // =====================================================================================
+  const MV = { head: 116, corr: 36, minW: 820, pad: 9, ts: 12.5, tlh: 16, ls: 12, llh: 15.5, ns: 13.5, nlh: 18, rise: 26, dip: 26, stem: 21, clh: 13 }; // layout-constant: pixel sizes, not data
+  const ROW_HEADS = [['Marketing stages', '(automation)'], ['Sales stages', '(people)'], ['Other statuses']];
+  const BOXES = [
+    { id: 'LEAD', title: label('LEAD'), k: 'LEAD', row: 0, col: 0 },
+    { id: 'ATE', title: label('ATE'), k: 'ATE', row: 0, col: 1 },
+    { id: 'ENG', title: label('ENG'), k: 'ENG', row: 0, col: 2 },
+    { id: 'HIL', title: label('HIL'), k: 'HIL', row: 0, col: 3 },
+    { id: 'ATC', title: 'Attempting to Contact', k: 'SALES', row: 1, col: 0, people: 'Attempting to Contact' },
+    { id: 'ATSI', title: 'Attempting to Schedule Intro', k: 'SALES', row: 1, col: 1, people: 'Attempting to Schedule Intro' },
+    { id: 'ICS', title: 'Intro Call Scheduled', k: 'SALES', row: 1, col: 2, people: 'Intro Call Scheduled' },
+    { id: 'SQL', title: 'Sales Qualified Lead', k: 'SALES', row: 1, col: 3, people: 'Sales Qualified Lead' },
+    { id: 'SAL', title: 'Sales Accepted Lead', k: 'SALES', row: 1, col: 4, people: 'Sales Accepted Lead' },
+    { id: 'CUST', title: 'Customer', k: 'SALES', row: 2, col: 0 },
+    { id: 'PART', title: label('PARTNER'), k: 'PARTNER', row: 2, col: 1 },
+    { id: 'UNQ', title: label('UNQ'), k: 'UNQ', row: 2, col: 4, people: 'UNQUALIFIED' },
+  ];
+
+  function moveSpecs() {
+    const n = v => ({ t: fmt(v), c: 'num' });
+    return {
+      before: {
+        inA: [
+          { col: 1, strong: true, label: [{ runs: [n(mv('auto_to_ate_first_status'))] }, { wrap: 'Stamped at creation if no owner' }] },
+          { col: 2, label: [{ runs: [n(mv('auto_to_engaged_total'))] }, { wrap: 'Engaged Lead set by automation' }, { wrap: 'almost never', c: 'quiet' }] },
+          { col: 3, label: [{ runs: [n(mv('auto_to_hil_total'))] }, { wrap: 'Score reaches High' }, { wrap: '(overwrites almost anything)', c: 'quiet' }] },
+        ],
+        back: [
+          { from: 2, to: 1, cls: 'is-warn', marker: 'mv-ah-warn', label: [{ runs: [{ icon: true }, n(mv('auto_engaged_to_ate'))] }, { wrap: 'pushed back' }] },
+          { from: 1, to: 0, cls: 'is-muted', marker: 'mv-ah-muted', label: [{ runs: [n(mv('our_app_ate_to_lead'))] }, { wrap: 'Reset to Lead by our cleanup script' }] },
+        ],
+        struck: [{ wrap: 'Meeting outcome loop' }, { runs: [n(mv('meeting_outcomes_recorded')), { t: ' outcomes recorded' }] }],
+        cust: [{ runs: [{ icon: true }, n(mv('auto_customer_to_hil'))] }, { wrap: 'customers relabelled' }],
+      },
+      after: {
+        arcsA: [
+          { from: 0, label: [{ wrap: 'first nurture email' }] },
+          { from: 1, label: [{ wrap: 'real nurture click or content download' }] },
+          { from: 2, label: [{ wrap: 'Contact Sales or Talk to an Engineer form, or score reaches High' }] },
+        ],
+        conn: [{ wrap: 'SDR picks it up (people)' }],
+        arcsB: [
+          { from: 0, to: 2, label: [{ wrap: 'meeting booked (people)' }] },
+          { from: 2, to: 3, label: [{ wrap: 'AE creates a deal (automatic, proposed)' }] },
+        ],
+        junk: [{ wrap: 'you junk it' }],
+        bus: [{ wrap: 'sales disqualifies' }],
+        again: [{ wrap: 'raises a hand again (your decision)' }],
+      },
+    };
+  }
+
+  function measureLabel(spec, maxW) {
+    const lines = [];
+    spec.forEach(part => {
+      if (part.runs) {
+        let w = 0, num = false;
+        part.runs.forEach(r => {
+          if (r.icon) w += ICON_W;
+          else if (r.c === 'num') { num = true; w += textW(r.t, MV.ns, 700); }
+          else w += textW(r.t, MV.ls, 500);
+        });
+        lines.push({ runs: part.runs, w: w, h: num ? MV.nlh : MV.llh });
+      } else {
+        wrapBalanced(part.wrap, maxW, MV.ls, 500).forEach(t => {
+          lines.push({ runs: [{ t: t, c: part.c || '' }], w: textW(t, MV.ls, 500), h: MV.llh });
+        });
+      }
+    });
+    return { lines: lines, w: Math.max(0, ...lines.map(l => l.w)), h: lines.reduce((a, l) => a + l.h, 0) };
+  }
+  function drawLabel(parent, Lb, x, top, anchor, cls) {
+    const g = el('g', { class: 'mv-lab' + (cls ? ' ' + cls : '') }, parent);
+    let y = top;
+    Lb.lines.forEach(line => {
+      y += line.h;
+      const base = y - 4.5;
+      let sx = anchor === 'middle' ? x - line.w / 2 : (anchor === 'end' ? x - line.w : x);
+      let t = null;
+      line.runs.forEach(r => {
+        if (r.icon) { warnIcon(g, sx + 6, base - 4.6); sx += ICON_W; t = null; return; }
+        if (!t) t = el('text', { x: r1(sx), y: r1(base) }, g);
+        const sp = el('tspan', { class: r.c || null }, t);
+        sp.textContent = r.t;
+      });
+    });
+    return g;
+  }
+  function arrow(parent, d, cls, marker) {
+    return el('path', { d: d, class: 'mv-arrow' + (cls ? ' ' + cls : ''), 'marker-end': `url(#${marker || 'mv-ah'})` }, parent);
+  }
+  function arc(x0, y0, x1, y1, lift) {
+    return `M${r1(x0)},${r1(y0)} C${r1(x0)},${r1(y0 + lift)} ${r1(x1)},${r1(y1 + lift)} ${r1(x1)},${r1(y1)}`;
+  }
+
+  function renderMoves() {
+    const scroller = document.getElementById('move-scroll');
+    const W = Math.max(Math.floor(scroller.clientWidth), MV.minW);
+    const P = (W - MV.head - MV.corr) / 5;
+    const bw = Math.min(P * 0.74, 172);
+    const bx = c => MV.head + P * c + (P - bw) / 2;
+    const cx = c => MV.head + P * c + P / 2;
+    const inner = bw - MV.pad * 2;
+    const T = {};
+    BOXES.forEach(b => { T[b.id] = wrapText(b.title, inner, MV.ts, 600); });
+    const cap = wrapText('set by people this year', inner, 10.5, 500);
+    const tl = row => Math.max(...BOXES.filter(b => b.row === row).map(b => T[b.id].length));
+    const countBlock = 6 + 18 + cap.length * MV.clh;
+    const bh = [MV.pad * 2 + tl(0) * MV.tlh, MV.pad * 2 + tl(1) * MV.tlh + countBlock, MV.pad * 2 + tl(2) * MV.tlh + countBlock];
+    const S = moveSpecs();
+
+    // lane heights, sized for whichever state needs more room so boxes never move on the switch
+    const wA = P - 16;
+    const inA = S.before.inA.map(a => measureLabel(a.label, wA));
+    const arcsA = S.after.arcsA.map(a => measureLabel(a.label, wA));
+    const LA = Math.max(Math.max(...inA.map(l => l.h)) + MV.stem + 6, Math.max(...arcsA.map(l => l.h)) + MV.rise * 0.75 + 10) + 4;
+    const y1 = LA;
+    const xRR = bx(3) + bw + 12, xo = W - 10, xi = W - 23;
+    const wRR = Math.max(60, xi - 8 - xRR);
+    const custL = measureLabel(S.before.cust, wRR);
+    const junkL = measureLabel(S.after.junk, wRR);
+    const againL = measureLabel(S.after.again, wRR);
+    const backL = S.before.back.map(b => measureLabel(b.label, P - 16));
+    const connL = measureLabel(S.after.conn, P * 1.6);
+    const ya = y1 + bh[0] * 0.3, yb = y1 + bh[0] * 0.7;
+    const overflow = Math.max(0, yb + 5 + againL.h - (y1 + bh[0]));
+    const LB1 = Math.max(MV.dip * 0.75 + 8 + Math.max(...backL.map(l => l.h)), connL.h + 16, overflow + 8) + 8;
+    const struckL = measureLabel(S.before.struck, P * 1.8);
+    const arcsB = S.after.arcsB.map(a => measureLabel(a.label, P * 1.3));
+    const LB2 = Math.max(struckL.h + MV.rise * 0.75 + 12, Math.max(...arcsB.map(l => l.h)) + MV.rise * 1.2 * 0.75 + 12) + 4;
+    const y2 = y1 + bh[0] + LB1 + LB2;
+    const busL = measureLabel(S.after.bus, P * 1.5);
+    const LC = Math.max(18 + busL.h + 12, 32);
+    const y3 = y2 + bh[1] + LC;
+    const H = y3 + bh[2] + 10;
+    const rowY = [y1, y2, y3];
+
+    const svg = document.getElementById('moves');
+    const host = document.getElementById('moves-draw');
+    host.replaceChildren();
+    svg.setAttribute('viewBox', vb(W, H));
+    svg.setAttribute('width', r1(W));
+    svg.setAttribute('height', r1(H));
+
+    // ---- base: row headers and boxes ----
+    const base = el('g', null, host);
+    ROW_HEADS.forEach((hd, r) => {
+      const cy = rowY[r] + bh[r] / 2;
+      const t = el('text', { x: 0, y: r1(cy - (hd.length - 1) * 8 + 4) }, base);
+      hd.forEach((s, i) => {
+        const sp = el('tspan', { x: 0, dy: i ? 16 : 0, class: i ? 'mv-head-sub' : 'mv-head' }, t);
+        sp.textContent = s;
+      });
+    });
+    const box = {};
+    BOXES.forEach(b => {
+      const x = bx(b.col), y = rowY[b.row], h = bh[b.row];
+      box[b.id] = { x: x, y: y, h: h, cx: x + bw / 2 };
+      el('rect', { x: r1(x), y: r1(y), width: r1(bw), height: r1(h), rx: 7, class: 'mv-box k-' + b.k }, base);
+      const t = el('text', { x: r1(x + MV.pad), y: r1(y + MV.pad + 12), class: 'mv-title' }, base);
+      T[b.id].forEach((s, i) => {
+        const sp = el('tspan', { x: r1(x + MV.pad), dy: i ? MV.tlh : 0 }, t);
+        sp.textContent = s;
+      });
+    });
+
+    // ---- before ----
+    const B = el('g', { class: 'st-layer st-before' }, host);
+    BOXES.filter(b => b.people).forEach(b => {
+      const bb = box[b.id];
+      const capTop = bb.y + bb.h - MV.pad - cap.length * MV.clh;
+      text(B, bb.x + MV.pad, capTop - 5, fmt(pp(b.people)), 'mv-count');
+      const t = el('text', { x: r1(bb.x + MV.pad), y: r1(capTop + 9.5), class: 'mv-cap' }, B);
+      cap.forEach((s, i) => {
+        const sp = el('tspan', { x: r1(bb.x + MV.pad), dy: i ? MV.clh : 0 }, t);
+        sp.textContent = s;
+      });
+    });
+    S.before.inA.forEach((a, i) => {
+      const x = cx(a.col);
+      const y0 = y1 - MV.stem;
+      drawLabel(B, inA[i], x, y0 - 6 - inA[i].h, 'middle');
+      el('circle', { cx: r1(x), cy: r1(y0), r: 2.6, class: 'mv-origin' }, B);
+      arrow(B, `M${r1(x)},${r1(y0)} L${r1(x)},${r1(y1 - 1)}`, a.strong ? 'is-strong' : '', a.strong ? 'mv-ah-strong' : 'mv-ah');
+    });
+    S.before.back.forEach((b, i) => {
+      const yb0 = y1 + bh[0];
+      const x0 = cx(b.from) - bw * 0.2, x1 = cx(b.to) + bw * 0.2;
+      arrow(B, arc(x0, yb0, x1, yb0 + 1, MV.dip), b.cls, b.marker);
+      drawLabel(B, backL[i], (x0 + x1) / 2, yb0 + MV.dip * 0.75 + 6, 'middle', b.cls === 'is-muted' ? 'is-muted' : '');
+    });
+    (function struck() {
+      const x0 = cx(2) + bw * 0.2, x1 = cx(3) - bw * 0.2, ax = (x0 + x1) / 2, ay = y2 - MV.rise * 0.75;
+      arrow(B, arc(x0, y2, x1, y2 - 1, -MV.rise), 'is-muted is-dashed', 'mv-ah-muted');
+      el('path', { d: `M${r1(ax - 5)},${r1(ay - 5)} L${r1(ax + 5)},${r1(ay + 5)} M${r1(ax - 5)},${r1(ay + 5)} L${r1(ax + 5)},${r1(ay - 5)}`, class: 'mv-cross' }, B);
+      drawLabel(B, struckL, ax, ay - 9 - struckL.h, 'middle');
+    })();
+    (function customerBack() {
+      const c = box.CUST, h = box.HIL;
+      const yc = y2 + bh[1] + LC / 2, yh = y1 + bh[0] / 2;
+      arrow(B, ortho([[c.cx, c.y], [c.cx, yc], [xo, yc], [xo, yh], [h.x + bw + 1, yh]], 8), 'is-warn', 'mv-ah-warn');
+      drawLabel(B, custL, xRR, yh - 6 - custL.h, 'start');
+    })();
+
+    // ---- after ----
+    const A = el('g', { class: 'st-layer st-after' }, host);
+    S.after.arcsA.forEach((a, i) => {
+      const x0 = cx(a.from) + bw * 0.2, x1 = cx(a.from + 1) - bw * 0.2;
+      arrow(A, arc(x0, y1, x1, y1 - 1, -MV.rise));
+      drawLabel(A, arcsA[i], (x0 + x1) / 2, y1 - MV.rise * 0.75 - 6 - arcsA[i].h, 'middle');
+    });
+    (function connector() {
+      const h = box.HIL, xC = cx(0) - bw * 0.2, yConn = y1 + bh[0] + LB1 - 6;
+      arrow(A, ortho([[h.cx, y1 + bh[0]], [h.cx, yConn], [xC, yConn], [xC, y2 - 1]], 8));
+      drawLabel(A, connL, (cx(0) + cx(3)) / 2, yConn - 6 - connL.h, 'middle');
+    })();
+    S.after.arcsB.forEach((a, i) => {
+      const x0 = cx(a.from) + bw * 0.2, x1 = cx(a.to) - bw * 0.2;
+      const lift = MV.rise * (a.to - a.from > 1 ? 1.2 : 1);
+      arrow(A, arc(x0, y2, x1, y2 - 1, -lift));
+      drawLabel(A, arcsB[i], (x0 + x1) / 2, y2 - lift * 0.75 - 6 - arcsB[i].h, 'middle');
+    });
+    (function junkAndAgain() {
+      const h = box.HIL, u = box.UNQ;
+      const yu1 = u.y + u.h * 0.3, yu2 = u.y + u.h * 0.7;
+      arrow(A, ortho([[h.x + bw, ya], [xo, ya], [xo, yu2], [u.x + bw + 1, yu2]], 8));
+      drawLabel(A, junkL, xRR, ya - 5 - junkL.h, 'start');
+      arrow(A, ortho([[u.x + bw, yu1], [xi, yu1], [xi, yb], [h.x + bw + 1, yb]], 8), 'is-dashed');
+      drawLabel(A, againL, xRR, yb + 4, 'start');
+      const yBus = y2 + bh[1] + 12, xD = u.x + bw * 0.3;
+      ['ATC', 'ATSI', 'ICS', 'SQL', 'SAL'].forEach(id => {
+        const b = box[id];
+        el('path', { d: `M${r1(b.cx)},${r1(b.y + b.h)} L${r1(b.cx)},${r1(yBus)}`, class: 'mv-stub' }, A);
+      });
+      el('path', { d: `M${r1(box.ATC.cx)},${r1(yBus)} L${r1(box.SAL.cx)},${r1(yBus)}`, class: 'mv-stub' }, A);
+      arrow(A, `M${r1(xD)},${r1(yBus)} L${r1(xD)},${r1(u.y - 1)}`);
+      drawLabel(A, busL, xD - 8, yBus + 3, 'end');
+    })();
+
+    svg.setAttribute('aria-label', movesSummary(state));
+  }
+
+  function movesSummary(s) {
+    if (s === 'before') {
+      const pc = PEOPLE_KEYS.map(k => `${k === 'UNQUALIFIED' ? label('UNQ') : k} ${fmt(pp(k))}`).join(', ');
+      return `Today. ${fmt(mv('auto_to_ate_first_status'))} contacts stamped ${label('ATE')} at creation because they had no owner. ` +
+        `${fmt(mv('auto_to_engaged_total'))} set to ${label('ENG')} by automation. ` +
+        `${fmt(mv('auto_to_hil_total'))} set to ${label('HIL')} when the score reached High. ` +
+        `${fmt(mv('auto_engaged_to_ate'))} pushed back from ${label('ENG')} to ${label('ATE')}. ` +
+        `${fmt(mv('our_app_ate_to_lead'))} reset from ${label('ATE')} to ${label('LEAD')} by our one-off cleanup script. ` +
+        `${fmt(mv('auto_customer_to_hil'))} customers relabelled ${label('HIL')}. ` +
+        `Set by people this year: ${pc}. Meeting outcome loop: ${fmt(mv('meeting_outcomes_recorded'))} outcomes recorded.`;
+    }
+    return `Proposed. ${label('LEAD')} to ${label('ATE')} on the first nurture email. To ${label('ENG')} on a real nurture click or content download. ` +
+      `To ${label('HIL')} on a Contact Sales or Talk to an Engineer form, or when the score reaches High. ` +
+      'To Attempting to Contact when an SDR picks it up. To Intro Call Scheduled when a meeting is booked. ' +
+      `To Sales Qualified Lead when an AE creates a deal. To ${label('UNQ')} when you junk it or sales disqualifies. ` +
+      `A contact at ${label('UNQ')} who raises a hand again goes back to ${label('HIL')}, your decision.`;
+  }
+
+  // ---------- legends, notes, table, text ----------
+  function landLegend() {
+    const ul = document.getElementById('land-legend');
+    ul.replaceChildren();
+    const lead = document.createElement('li');
+    lead.className = 'lead-in';
+    lead.textContent = 'Lead status, same colours in both figures:';
+    ul.appendChild(lead);
+    LEGEND_ORDER.forEach(id => {
+      const li = document.createElement('li');
+      const sw = document.createElement('span');
+      sw.className = 'sw sw-' + id;
+      const t = document.createElement('span');
+      t.textContent = label(id);
+      li.append(sw, t);
+      ul.appendChild(li);
+    });
+  }
+
+  function moveLegend(s) {
+    const ul = document.getElementById('move-legend');
+    ul.replaceChildren();
+    const items = s === 'before'
+      ? [['', 'mv-ah', 'Move made by automation'], ['is-warn', 'mv-ah-warn', 'Backward move by automation'],
+         ['is-muted', 'mv-ah-muted', 'Reset by our cleanup script'], ['is-muted is-dashed', 'mv-ah-muted', 'Not running', true]]
+      : [['', 'mv-ah', 'Proposed rule'], ['is-dashed', 'mv-ah', 'Your decision']];
+    items.forEach(it => {
+      const li = document.createElement('li');
+      const s2 = document.createElementNS(NS, 'svg');
+      s2.setAttribute('width', 34);
+      s2.setAttribute('height', 12);
+      s2.setAttribute('aria-hidden', 'true');
+      el('path', { d: `M${2},${6} L${31},${6}`, class: 'mv-arrow ' + it[0], 'marker-end': `url(#${it[1]})` }, s2);
+      if (it[3]) el('path', { d: `M${12},${2} L${20},${10} M${12},${10} L${20},${2}`, class: 'mv-cross' }, s2);
+      if (it[0] === 'is-warn') warnIcon(s2, 16, 6);
+      const t = document.createElement('span');
+      t.textContent = it[2];
+      li.append(s2, t);
+      ul.appendChild(li);
+    });
+  }
+
+  function notesFor(s) {
+    const out = [];
+    if (s === 'before') {
+      out.push([{ n: nt('before', 'ATE') }, ` land on ${label('ATE')}; `, { n: D.before_ate_stamped_by_automation },
+        ' of them were stamped by a workflow within seconds because they had no owner yet.']);
+      out.push([{ n: nt('before', 'NONE') }, ' get no status. ', { n: flowN('before', 'trial', 'NONE') + flowN('before', 'sales_other', 'NONE') },
+        ' of them are trial sign-ups or sales-created contacts.']);
+      const ask = grp('sales_ask'), news = grp('newsletter');
+      if (flowN('before', 'sales_ask', 'ATE') === ask.n && flowN('before', 'newsletter', 'ATE') === news.n) {
+        out.push(['All ', { n: ask.n }, ` who asked for sales start at ${label('ATE')}, the same as every newsletter sign-up.`]);
+      } else {
+        out.push([{ n: flowN('before', 'sales_ask', 'ATE') }, ' of the ', { n: ask.n }, ` who asked for sales start at ${label('ATE')}.`]);
+      }
+      out.push([{ n: nt('before', 'ENG') }, ` start at ${label('ENG')} and `, { n: nt('before', 'HIL') }, ` at ${label('HIL')}.`]);
+    } else {
+      out.push([{ n: nt('after', 'LEAD') }, ` start at ${label('LEAD')}, `, { n: nt('after', 'ENG') }, ` at ${label('ENG')}, `,
+        { n: nt('after', 'HIL') }, ` at ${label('HIL')}, and `, { n: nt('after', 'LOE') }, ' are set on the import.']);
+      out.push(['Trial sign-ups and sales-created contacts keep the status people give them; automation adds nothing.']);
+      out.push([`At creation, ${label('ATE')} drops from `, { n: nt('before', 'ATE') }, ' to ', { n: nt('after', 'ATE') },
+        '. Contacts reach it when their first nurture email goes out.']);
+      const part = grp('partner'), staff = grp('staff_test');
+      if (flowN('after', 'partner', 'PARTNER') === part.n && flowN('after', 'staff_test', 'NONE') === staff.n) {
+        out.push(['The ', { n: part.n }, ` Become a Partner sign-ups start at ${label('PARTNER')}, and the `, { n: staff.n },
+          ' staff and test contacts get no status.']);
+      }
+    }
+    return out;
+  }
+  function renderNotes(s) {
+    const ul = document.getElementById('land-notes');
+    ul.replaceChildren();
+    notesFor(s).forEach(parts => {
+      const li = document.createElement('li');
+      parts.forEach(p => {
+        if (typeof p === 'string') { li.appendChild(document.createTextNode(p)); return; }
+        const b = document.createElement('strong');
+        b.textContent = fmt(p.n);
+        li.appendChild(b);
+      });
+      ul.appendChild(li);
+    });
+  }
+
+  function renderTable() {
+    const t = document.getElementById('land-table');
+    t.replaceChildren();
+    const capEl = document.createElement('caption');
+    capEl.textContent = 'First lead status of each contact created this year, by route';
+    t.appendChild(capEl);
+    const head = document.createElement('thead');
+    const hr = document.createElement('tr');
+    [['Route', ''], ['Contacts', 'num'], ['Today', ''], ['Proposed', '']].forEach(c => {
+      const th = document.createElement('th');
+      th.scope = 'col';
+      th.textContent = c[0];
+      if (c[1]) th.className = c[1];
+      hr.appendChild(th);
+    });
+    head.appendChild(hr);
+    t.appendChild(head);
+    let body = null, prev = null;
+    const cell = (s, gid) => {
+      const td = document.createElement('td');
+      NODE_ORDER.filter(nd => flowN(s, gid, nd) > 0).forEach(nd => {
+        const line = document.createElement('div');
+        line.className = 'cell-line';
+        const a = document.createElement('span');
+        a.textContent = label(nd);
+        const b = document.createElement('span');
+        b.textContent = fmt(flowN(s, gid, nd));
+        line.append(a, b);
+        td.appendChild(line);
+      });
+      return td;
+    };
+    D.groups.forEach(g => {
+      const b = bandOf(g);
+      if (b !== prev) {
+        body = document.createElement('tbody');
+        const br = document.createElement('tr');
+        br.className = 'band';
+        const th = document.createElement('th');
+        th.colSpan = 4;
+        th.scope = 'rowgroup';
+        th.textContent = `${BAND_NAME[b]} · ${fmt(D.groups.filter(x => bandOf(x) === b).reduce((a, x) => a + x.n, 0))}`;
+        br.appendChild(th);
+        body.appendChild(br);
+        t.appendChild(body);
+        prev = b;
+      }
+      const tr2 = document.createElement('tr');
+      const th = document.createElement('th');
+      th.scope = 'row';
+      th.textContent = g.label;
+      th.style.fontWeight = '500';
+      const n = document.createElement('td');
+      n.className = 'num';
+      n.textContent = fmt(g.n);
+      tr2.append(th, n, cell('before', g.id), cell('after', g.id));
+      body.appendChild(tr2);
+    });
+  }
+
+  function renderMoveText(s) {
+    document.getElementById('move-sub').textContent = s === 'before'
+      ? `Contacts moved this year, from the status history of every contact read on ${fmtDate(D.sources.history.read)}. A contact moved twice counts once.`
+      : 'The proposed rules. Nothing runs on them yet, so there are no counts.';
+    const rule = document.getElementById('move-rule');
+    rule.replaceChildren();
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = s === 'before' ? 'Today' : 'Proposed rule';
+    rule.appendChild(tag);
+    if (s === 'before') {
+      rule.append('This year automation moved contacts backward ');
+      const a = document.createElement('strong');
+      a.textContent = fmt(mv('auto_backward_total'));
+      rule.append(a, ' times, and into a sales stage ');
+      const b = document.createElement('strong');
+      b.textContent = fmt(mv('auto_to_sales_stages'));
+      rule.append(b, ' times.');
+    } else {
+      rule.append('Automation only moves contacts forward, and never touches anyone at Attempting to Contact or later, Customer or Partner.');
+    }
+    const svg = document.getElementById('moves');
+    svg.setAttribute('aria-label', movesSummary(s));
+  }
+
+  function staticTexts() {
+    document.getElementById('asof').textContent = `${D.population} · ${fmt(D.total)} contacts · as of ${fmtDate(D.as_of)}`;
+    document.getElementById('source').textContent =
+      `Generated ${fmtStamp(D.generated_at)} · entry routes: ${D.sources.entry.read} · status history: ${D.sources.history.read} · numbers: .claude/state/lead_status_flow.json`;
+  }
+
+  function hints() {
+    [['land-scroll', 'land-hint', 'sankey'], ['move-scroll', 'move-hint', 'moves']].forEach(ids => {
+      const sc = document.getElementById(ids[0]), svg = document.getElementById(ids[2]);
+      document.getElementById(ids[1]).hidden = !(svg.getBoundingClientRect().width > sc.clientWidth + 2);
+    });
+  }
+
+  // ---------- state ----------
+  const btns = Array.from(document.querySelectorAll('.seg button'));
+  function setState(s, animate) {
+    const prev = state;
+    state = s;
+    page.dataset.state = s;
+    btns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.state === s)));
+    skEnd();
+    renderNotes(s);
+    renderMoveText(s);
+    moveLegend(s);
+    if (SKG) {
+      sankeyTexts(s);
+      const to = sankeyState(SKG, s);
+      SKS = to;
+      if (animate && prev !== s && !reduceMotion.matches) animateSankey(to);
+      else { cancelAnimationFrame(skAnim); applySankey(to); }
+    }
+  }
+  btns.forEach(b => b.addEventListener('click', () => setState(b.dataset.state, true)));
+
+  function showFail(err) {
+    const f = document.getElementById('fail');
+    f.textContent = 'The figures could not be drawn: ' + (err && err.message ? err.message : String(err));
+    f.hidden = false;
+    if (window.console) console.error(err);
+  }
+
+  const lastW = { land: -1, move: -1 };
+  function renderAll(force) {
+    try {
+      const lw = document.getElementById('land-scroll').clientWidth;
+      if (force || lw !== lastW.land) { renderSankey(); lastW.land = lw; }
+      const mw = document.getElementById('move-scroll').clientWidth;
+      if (force || mw !== lastW.move) { renderMoves(); lastW.move = mw; }
+      hints();
+    } catch (err) {
+      showFail(err);
+    }
+  }
+
+  try {
+    if (UNKNOWN.length) throw new Error('no place in the flow for status node ' + UNKNOWN.join(', '));
+    staticTexts();
+    landLegend();
+    renderTable();
+    state = location.hash === '#after' ? 'after' : 'before';
+    page.dataset.state = state;
+    renderAll(true);
+    setState(state, false);
+  } catch (err) {
+    showFail(err);
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => renderAll(true));
+  if ('ResizeObserver' in window) {
+    let raf = 0;
+    const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => renderAll(false)); });
+    ro.observe(document.getElementById('land-scroll'));
+    ro.observe(document.getElementById('move-scroll'));
+  }
+})();
+</script>
+</body>
+</html>
