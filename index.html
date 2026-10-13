@@ -11,7 +11,9 @@
 <style>
 /* Layout: one centred column (max 1180px). Masthead, a sticky Before/After switch that drives both
    figures, two diagram panels drawn 1:1 in SVG (each scrolls sideways inside its own panel when the
-   screen is narrower than the drawing), then a quiet footer with the open decisions and the source.
+   screen is narrower than the drawing), three table panels (what gets switched off, who else sets
+   lead status, the new rules; on phones each row becomes a card), then a quiet footer with the
+   decisions, what is still open, and the source.
    Every number on the page is read from the JSON block at the bottom; none is typed here. */
 :root {
   /* surfaces and ink: cool neutrals with a slight blue bias */
@@ -379,6 +381,57 @@ td { color: var(--ink-2); }
 [data-state="before"] .st-after,
 [data-state="after"] .st-before { opacity: 0; visibility: hidden; }
 
+/* ---- the three tables after the figures: switched off, who else, the new rules ---- */
+.datatable { min-width: 0; margin-top: 14px; font-size: 13.5px; line-height: 1.5; }
+.datatable th, .datatable td { padding: 10px 18px 10px 0; }
+.datatable tbody th { font-weight: 600; color: var(--ink); }
+.datatable thead th, .datatable .nowrap { white-space: nowrap; }
+#who-table tbody th { min-width: 13em; }
+.datatable td:last-child, .datatable th:last-child { padding-right: 0; }
+.datatable .sub-line { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; color: var(--muted); }
+.datatable p { margin: 0 0 4px; }
+.datatable p:last-child { margin-bottom: 0; }
+.steps { margin: 0; padding-left: 16px; }
+.steps .steps { margin-top: 2px; }
+.steps li { margin: 1px 0; }
+.steps li::marker { color: var(--muted); }
+.steps .if { color: var(--ink); font-weight: 600; }
+.wait-tag {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border: 1px solid var(--st-sales);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--st-sales) 14%, var(--surface));
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--ink);
+  white-space: nowrap;
+}
+tr.is-waiting td { color: var(--muted); }
+.note { margin: 10px 0 0; max-width: 84ch; font-size: 13px; color: var(--muted); text-wrap: pretty; }
+.decide.open { list-style: none; padding-left: 0; }
+.decide.open strong { color: var(--ink); font-weight: 650; }
+
+/* phones: each table row becomes a card, each cell labelled by its column */
+@media (max-width: 720px) {
+  .datatable thead { display: none; }
+  .datatable, .datatable tbody, .datatable tr, .datatable th, .datatable td { display: block; width: 100%; }
+  .datatable tr { padding: 10px 0 12px; border-bottom: 1px solid var(--rule); }
+  .datatable th, .datatable td { padding: 3px 0; border: 0; text-align: left; }
+  .datatable td.num { text-align: left; padding-right: 0; }
+  .datatable td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .st-layer, .lk, .sk-note { transition: none; }
 }
@@ -449,13 +502,40 @@ td { color: var(--ink-2); }
     <p class="rule" id="move-rule"></p>
   </section>
 
+  <section class="panel" id="off" aria-labelledby="off-title">
+    <div class="panel-head">
+      <h2 id="off-title">What gets switched off</h2>
+      <p class="sub" id="off-sub"></p>
+    </div>
+    <table class="datatable" id="off-table" aria-labelledby="off-title"></table>
+    <p class="rule" id="off-all"></p>
+    <p class="note" id="off-note"></p>
+  </section>
+
+  <section class="panel" id="who" aria-labelledby="who-title">
+    <div class="panel-head">
+      <h2 id="who-title">Who else sets lead status</h2>
+      <p class="sub" id="who-sub"></p>
+    </div>
+    <table class="datatable" id="who-table" aria-labelledby="who-title"></table>
+    <p class="rule" id="who-none"></p>
+  </section>
+
+  <section class="panel" id="new-rules" aria-labelledby="rules-title">
+    <div class="panel-head">
+      <h2 id="rules-title">The new rules</h2>
+      <p class="sub" id="rules-sub"></p>
+    </div>
+    <table class="datatable" id="rules-table" aria-labelledby="rules-title"></table>
+    <p class="note" id="rules-note"></p>
+    <p class="rule" id="catchup"></p>
+  </section>
+
   <footer class="foot">
-    <h2>Still to decide</h2>
-    <ol class="decide">
-      <li>Go ahead with the design. It is built switched off and tested first.</li>
-      <li>Trial sign-ups stay out of the lead funnel.</li>
-      <li>A disqualified contact who raises a hand again comes back as High Intent Lead.</li>
-    </ol>
+    <h2 id="decided-title">Decided</h2>
+    <ol class="decide" id="decided"></ol>
+    <h2>Still open</h2>
+    <ul class="decide open" id="still-open"></ul>
     <p class="source" id="source"></p>
   </footer>
 </main>
@@ -463,7 +543,7 @@ td { color: var(--ink-2); }
 <div class="tip" id="tip" role="tooltip" hidden></div>
 
 <script type="application/json" id="flow-data">{
- "generated_at": "2026-10-09T19:43:13+00:00",
+ "generated_at": "2026-10-13T11:24:38+00:00",
  "as_of": "2026-10-09",
  "population": "Contacts created 1 Jan - 9 Oct 2026",
  "sources": {
@@ -478,6 +558,25 @@ td { color: var(--ink-2); }
    "sha256_16": "75f83bb7b2ac2276",
    "contacts": 21670,
    "read": "2026-10-08 (status history of every contact, read-only)"
+  },
+  "writers": {
+   "file": "contacts_history.json",
+   "sha256_16": "75f83bb7b2ac2276",
+   "contacts": 21670,
+   "read": "2026-10-08 (status history of every contact, read-only)"
+  },
+  "live": {
+   "read": "2026-10-13 (flows, lists, owners, labels and catch-up sizes, read-only)",
+   "read_at": "2026-10-13T10:44:32+00:00",
+   "flows_scanned": 102,
+   "wave2_file": ".claude/state/nurture_wave2_load.json",
+   "wave2_sha256_16": "583103b6edff5ce2"
+  },
+  "scanner": {
+   "file": ".claude/state/lead_status_build/scanner/classification.json",
+   "sha256_16": "a273f33c5fd399e9",
+   "rows": 78,
+   "read": "2026-10-13 (nurture click classification, rules in scanner/classify.py)"
   }
  },
  "total": 5411,
@@ -882,6 +981,1091 @@ td { color: var(--ink-2); }
   "auto_to_sales_stages": 0,
   "meeting_outcomes_recorded": 0
  },
+ "labels": {
+  "status": {
+   "Lead": "Lead",
+   "Attempting to Engage": "Attempting to Engage",
+   "Engaged Lead": "Engaged Lead",
+   "High Intent Lead": "High Intent Lead",
+   "Attempting to Contact": "Attempting to Contact",
+   "Attempting to Schedule Intro": "Attempting to Schedule Intro",
+   "Intro Call Scheduled": "Intro Call Scheduled",
+   "Sales Qualified Lead": "Sales Qualified Lead",
+   "Customer": "Customer",
+   "UNQUALIFIED": "Unqualified - Discarded",
+   "Partner": "Partner",
+   "Sales Accepted Lead": "Sales Accepted Lead"
+  },
+  "lifecycle": {
+   "lead": "Lead",
+   "marketingqualifiedlead": "MQL",
+   "760244726": "PQL",
+   "salesqualifiedlead": "SQL",
+   "opportunity": "Opportunity",
+   "customer": "Customer",
+   "1891345620": "Partner",
+   "other": "Disqualified"
+  }
+ },
+ "writers": {
+  "window": {
+   "from": "2025-10-13",
+   "to": "2026-10-08"
+  },
+  "total": 5480,
+  "types": [
+   {
+    "key": "workflows",
+    "label": "Workflows",
+    "n": 2643,
+    "contacts": 2442,
+    "last": "2026-10-08",
+    "values": [
+     {
+      "value": "Attempting to Engage",
+      "label": "Attempting to Engage",
+      "valid": true,
+      "n": 2349
+     },
+     {
+      "value": "High Intent Lead",
+      "label": "High Intent Lead",
+      "valid": true,
+      "n": 288
+     },
+     {
+      "value": "Engaged Lead",
+      "label": "Engaged Lead",
+      "valid": true,
+      "n": 6
+     }
+    ]
+   },
+   {
+    "key": "people",
+    "label": "People editing a contact in HubSpot",
+    "n": 547,
+    "contacts": 488,
+    "last": "2026-10-06",
+    "values": [
+     {
+      "value": "Intro Call Scheduled",
+      "label": "Intro Call Scheduled",
+      "valid": true,
+      "n": 151
+     },
+     {
+      "value": "UNQUALIFIED",
+      "label": "Unqualified - Discarded",
+      "valid": true,
+      "n": 126
+     },
+     {
+      "value": "Attempting to Contact",
+      "label": "Attempting to Contact",
+      "valid": true,
+      "n": 103
+     },
+     {
+      "value": "Attempting to Engage",
+      "label": "Attempting to Engage",
+      "valid": true,
+      "n": 49
+     },
+     {
+      "value": "Lead",
+      "label": "Lead",
+      "valid": true,
+      "n": 42
+     },
+     {
+      "value": "Sales Qualified Lead",
+      "label": "Sales Qualified Lead",
+      "valid": true,
+      "n": 41
+     },
+     {
+      "value": "Attempting to Schedule Intro",
+      "label": "Attempting to Schedule Intro",
+      "valid": true,
+      "n": 16
+     },
+     {
+      "value": "Engaged Lead",
+      "label": "Engaged Lead",
+      "valid": true,
+      "n": 12
+     },
+     {
+      "value": "Partner",
+      "label": "Partner",
+      "valid": true,
+      "n": 3
+     },
+     {
+      "value": "Sales Accepted Lead",
+      "label": "Sales Accepted Lead",
+      "valid": true,
+      "n": 3
+     },
+     {
+      "value": "Customer",
+      "label": "Customer",
+      "valid": true,
+      "n": 1
+     }
+    ],
+    "people": 13,
+    "roles": [
+     {
+      "role": "sdr",
+      "one": "a Sellerate SDR",
+      "many": "Sellerate SDRs",
+      "group": "Sellerate SDRs",
+      "note": "",
+      "people": 3,
+      "n": 361,
+      "values": [
+       {
+        "value": "Intro Call Scheduled",
+        "label": "Intro Call Scheduled",
+        "valid": true,
+        "n": 142
+       },
+       {
+        "value": "UNQUALIFIED",
+        "label": "Unqualified - Discarded",
+        "valid": true,
+        "n": 121
+       },
+       {
+        "value": "Attempting to Contact",
+        "label": "Attempting to Contact",
+        "valid": true,
+        "n": 54
+       },
+       {
+        "value": "Sales Qualified Lead",
+        "label": "Sales Qualified Lead",
+        "valid": true,
+        "n": 15
+       },
+       {
+        "value": "Attempting to Schedule Intro",
+        "label": "Attempting to Schedule Intro",
+        "valid": true,
+        "n": 13
+       },
+       {
+        "value": "Attempting to Engage",
+        "label": "Attempting to Engage",
+        "valid": true,
+        "n": 7
+       },
+       {
+        "value": "Partner",
+        "label": "Partner",
+        "valid": true,
+        "n": 3
+       },
+       {
+        "value": "Sales Accepted Lead",
+        "label": "Sales Accepted Lead",
+        "valid": true,
+        "n": 3
+       },
+       {
+        "value": "Lead",
+        "label": "Lead",
+        "valid": true,
+        "n": 2
+       },
+       {
+        "value": "Customer",
+        "label": "Customer",
+        "valid": true,
+        "n": 1
+       }
+      ],
+      "last": "2026-10-02"
+     },
+     {
+      "role": "ae",
+      "one": "an AE",
+      "many": "AEs",
+      "group": "AEs",
+      "note": "",
+      "people": 2,
+      "n": 52,
+      "values": [
+       {
+        "value": "Lead",
+        "label": "Lead",
+        "valid": true,
+        "n": 19
+       },
+       {
+        "value": "Sales Qualified Lead",
+        "label": "Sales Qualified Lead",
+        "valid": true,
+        "n": 19
+       },
+       {
+        "value": "Engaged Lead",
+        "label": "Engaged Lead",
+        "valid": true,
+        "n": 7
+       },
+       {
+        "value": "Attempting to Engage",
+        "label": "Attempting to Engage",
+        "valid": true,
+        "n": 6
+       },
+       {
+        "value": "Intro Call Scheduled",
+        "label": "Intro Call Scheduled",
+        "valid": true,
+        "n": 1
+       }
+      ],
+      "last": "2026-10-06"
+     },
+     {
+      "role": "staff",
+      "one": "a Vespa staff member",
+      "many": "Vespa staff",
+      "group": "Other Vespa staff",
+      "note": "",
+      "people": 4,
+      "n": 23,
+      "values": [
+       {
+        "value": "Lead",
+        "label": "Lead",
+        "valid": true,
+        "n": 12
+       },
+       {
+        "value": "Attempting to Engage",
+        "label": "Attempting to Engage",
+        "valid": true,
+        "n": 6
+       },
+       {
+        "value": "Engaged Lead",
+        "label": "Engaged Lead",
+        "valid": true,
+        "n": 3
+       },
+       {
+        "value": "Intro Call Scheduled",
+        "label": "Intro Call Scheduled",
+        "valid": true,
+        "n": 2
+       }
+      ],
+      "last": "2026-07-30"
+     },
+     {
+      "role": "former",
+      "one": "a former team member",
+      "many": "former team members",
+      "group": "Former team members",
+      "note": "archived",
+      "people": 4,
+      "n": 111,
+      "values": [
+       {
+        "value": "Attempting to Contact",
+        "label": "Attempting to Contact",
+        "valid": true,
+        "n": 49
+       },
+       {
+        "value": "Attempting to Engage",
+        "label": "Attempting to Engage",
+        "valid": true,
+        "n": 30
+       },
+       {
+        "value": "Lead",
+        "label": "Lead",
+        "valid": true,
+        "n": 9
+       },
+       {
+        "value": "Sales Qualified Lead",
+        "label": "Sales Qualified Lead",
+        "valid": true,
+        "n": 7
+       },
+       {
+        "value": "Intro Call Scheduled",
+        "label": "Intro Call Scheduled",
+        "valid": true,
+        "n": 6
+       },
+       {
+        "value": "UNQUALIFIED",
+        "label": "Unqualified - Discarded",
+        "valid": true,
+        "n": 5
+       },
+       {
+        "value": "Attempting to Schedule Intro",
+        "label": "Attempting to Schedule Intro",
+        "valid": true,
+        "n": 3
+       },
+       {
+        "value": "Engaged Lead",
+        "label": "Engaged Lead",
+        "valid": true,
+        "n": 2
+       }
+      ],
+      "last": "2026-03-23"
+     }
+    ]
+   },
+   {
+    "key": "bulk",
+    "label": "Bulk edits",
+    "n": 1552,
+    "contacts": 1552,
+    "last": "2026-06-22",
+    "values": [
+     {
+      "value": "Engaged Lead",
+      "label": "Engaged Lead",
+      "valid": true,
+      "n": 1287
+     },
+     {
+      "value": "Attempting to Engage",
+      "label": "Attempting to Engage",
+      "valid": true,
+      "n": 217
+     },
+     {
+      "value": "Sales Qualified Lead",
+      "label": "Sales Qualified Lead",
+      "valid": true,
+      "n": 48
+     }
+    ],
+    "by_role": [
+     {
+      "role": "former",
+      "one": "a former team member",
+      "many": "former team members",
+      "group": "Former team members",
+      "note": "archived",
+      "people": 1,
+      "n": 1552
+     }
+    ]
+   },
+   {
+    "key": "imports",
+    "label": "Imports",
+    "n": 301,
+    "contacts": 291,
+    "last": "2026-06-16",
+    "values": [
+     {
+      "value": "Attempting to Engage",
+      "label": "Attempting to Engage",
+      "valid": true,
+      "n": 276
+     },
+     {
+      "value": "Engaged Lead",
+      "label": "Engaged Lead",
+      "valid": true,
+      "n": 25
+     }
+    ],
+    "by_role": [
+     {
+      "role": "former",
+      "one": "a former team member",
+      "many": "former team members",
+      "group": "Former team members",
+      "note": "archived",
+      "people": 1,
+      "n": 301
+     }
+    ],
+    "imports": 6,
+    "same_account_as_bulk": true
+   },
+   {
+    "key": "our_scripts",
+    "label": "Our scripts (our private app)",
+    "n": 433,
+    "contacts": 430,
+    "last": "2026-09-10",
+    "values": [
+     {
+      "value": "Lead",
+      "label": "Lead",
+      "valid": true,
+      "n": 395
+     },
+     {
+      "value": "Engaged Lead",
+      "label": "Engaged Lead",
+      "valid": true,
+      "n": 22
+     },
+     {
+      "value": "Attempting to Engage",
+      "label": "Attempting to Engage",
+      "valid": true,
+      "n": 11
+     },
+     {
+      "value": "Intro Call Scheduled",
+      "label": "Intro Call Scheduled",
+      "valid": true,
+      "n": 3
+     },
+     {
+      "value": "Sales Qualified Lead",
+      "label": "Sales Qualified Lead",
+      "valid": true,
+      "n": 2
+     }
+    ]
+   },
+   {
+    "key": "merges",
+    "label": "Contact merges",
+    "n": 2,
+    "contacts": 2,
+    "last": "2026-01-26",
+    "values": [
+     {
+      "value": "Attempting to Engage",
+      "label": "Attempting to Engage",
+      "valid": true,
+      "n": 1
+     },
+     {
+      "value": "Intro Call Scheduled",
+      "label": "Intro Call Scheduled",
+      "valid": true,
+      "n": 1
+     }
+    ]
+   },
+   {
+    "key": "mobile",
+    "label": "HubSpot mobile app",
+    "n": 2,
+    "contacts": 2,
+    "last": "2026-07-10",
+    "values": [
+     {
+      "value": "Attempting to Engage",
+      "label": "Attempting to Engage",
+      "valid": true,
+      "n": 1
+     },
+     {
+      "value": "Engaged Lead",
+      "label": "Engaged Lead",
+      "valid": true,
+      "n": 1
+     }
+    ],
+    "by_role": [
+     {
+      "role": "ae",
+      "one": "an AE",
+      "many": "AEs",
+      "group": "AEs",
+      "note": "",
+      "people": 2,
+      "n": 2
+     }
+    ]
+   }
+  ],
+  "source_types": [
+   "AUTOMATION_PLATFORM",
+   "CRM_UI",
+   "CRM_UI_BULK_ACTION",
+   "IMPORT",
+   "INTEGRATION",
+   "MERGE_OBJECTS",
+   "MOBILE_ANDROID",
+   "MOBILE_IOS"
+  ]
+ },
+ "switch_off": {
+  "flows": [
+   {
+    "id": "1554318293",
+    "name": "No Contact Owner with Lead Status",
+    "on": true,
+    "n_actions": 2,
+    "steps": [
+     {
+      "kind": "set",
+      "prop": "lifecyclestage",
+      "prop_label": "Lifecycle Stage",
+      "value": "marketingqualifiedlead",
+      "value_label": "MQL",
+      "valid": true
+     },
+     {
+      "kind": "set",
+      "prop": "hs_lead_status",
+      "prop_label": "Lead Status",
+      "value": "Attempting to Engage",
+      "value_label": "Attempting to Engage",
+      "valid": true
+     }
+    ],
+    "assigns": [],
+    "writes_status": true,
+    "shared_with": [],
+    "status_last": "2026-10-05",
+    "still_running": true,
+    "status_changes_12m": 2349,
+    "status_contacts_12m": 2349,
+    "lists": []
+   },
+   {
+    "id": "2309016823",
+    "name": "High Intent leads - Set up",
+    "on": true,
+    "n_actions": 2,
+    "steps": [
+     {
+      "kind": "set",
+      "prop": "hs_lead_status",
+      "prop_label": "Lead Status",
+      "value": "High Intent Lead",
+      "value_label": "High Intent Lead",
+      "valid": true
+     },
+     {
+      "kind": "wait_event",
+      "prop_label": "Lead Status",
+      "values": [
+       "Attempting to Engage"
+      ],
+      "amount": 365,
+      "unit": "days"
+     }
+    ],
+    "assigns": [],
+    "writes_status": true,
+    "shared_with": [],
+    "status_last": "2026-10-08",
+    "still_running": true,
+    "status_changes_12m": 288,
+    "status_contacts_12m": 288,
+    "lists": []
+   },
+   {
+    "id": "1605659842",
+    "name": "Attempting to Engage to Engaged Lead",
+    "on": true,
+    "n_actions": 1,
+    "steps": [
+     {
+      "kind": "set",
+      "prop": "hs_lead_status",
+      "prop_label": "Lead Status",
+      "value": "Engaged Lead",
+      "value_label": "Engaged Lead",
+      "valid": true
+     }
+    ],
+    "assigns": [],
+    "writes_status": true,
+    "shared_with": [],
+    "status_last": "2026-09-07",
+    "still_running": false,
+    "status_changes_12m": 6,
+    "status_contacts_12m": 6,
+    "lists": []
+   },
+   {
+    "id": "1554309576",
+    "name": "No Contact Owner to SDRs- MQL - Attempting to Engage",
+    "on": true,
+    "n_actions": 10,
+    "steps": [
+     {
+      "kind": "delay",
+      "amount": 5,
+      "unit": "hours"
+     },
+     {
+      "kind": "branch",
+      "arms": [
+       {
+        "when": "the associated company's Company owner is known",
+        "steps": [
+         {
+          "kind": "copy",
+          "target_label": "Contact owner"
+         }
+        ]
+       },
+       {
+        "when": null,
+        "steps": [
+         {
+          "kind": "branch",
+          "arms": [
+           {
+            "when": "Country contains US, United States, USA or America",
+            "steps": [
+             {
+              "kind": "set_owner",
+              "prop_label": "Contact owner",
+              "role": "former",
+              "who": "a former team member",
+              "archived": true
+             },
+             {
+              "kind": "set",
+              "prop": "lifecyclestage",
+              "prop_label": "Lifecycle Stage",
+              "value": "marketingqualifiedlead",
+              "value_label": "MQL",
+              "valid": true
+             },
+             {
+              "kind": "set",
+              "prop": "hs_lead_status",
+              "prop_label": "Lead Status",
+              "value": "Attempting to Engage",
+              "value_label": "Attempting to Engage",
+              "valid": true
+             }
+            ]
+           },
+           {
+            "when": null,
+            "steps": [
+             {
+              "kind": "set_owner",
+              "prop_label": "Contact owner",
+              "role": "former",
+              "who": "a former team member",
+              "archived": true
+             },
+             {
+              "kind": "set",
+              "prop": "lifecyclestage",
+              "prop_label": "Lifecycle Stage",
+              "value": "marketingqualifiedlead",
+              "value_label": "MQL",
+              "valid": true
+             },
+             {
+              "kind": "set",
+              "prop": "hs_lead_status",
+              "prop_label": "Lead Status",
+              "value": "Attempting to Engage",
+              "value_label": "Attempting to Engage",
+              "valid": true
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "assigns": [
+     {
+      "role": "former",
+      "one": "a former team member",
+      "many": "former team members",
+      "group": "Former team members",
+      "note": "archived",
+      "people": 2,
+      "n": 2
+     }
+    ],
+    "writes_status": true,
+    "shared_with": [],
+    "status_last": "2025-09-19",
+    "still_running": false,
+    "status_changes_12m": 0,
+    "status_contacts_12m": 0,
+    "lists": [
+     {
+      "list": "383",
+      "role": "enrol",
+      "name": "No contact - Attempting to Engage - MQL Lifecycle Stage",
+      "size": 167,
+      "newest_add": "2026-09-22T09:57:24.406Z",
+      "newest_add_not_merge": "2026-09-22T09:57:24.406Z",
+      "merge_adds_after": 0
+     }
+    ]
+   },
+   {
+    "id": "1554366171",
+    "name": "Attempting to Contact - MQL Lifecycle Stage",
+    "on": true,
+    "n_actions": 3,
+    "steps": [
+     {
+      "kind": "set_owner",
+      "prop_label": "Contact owner",
+      "role": "former",
+      "who": "a former team member",
+      "archived": true
+     },
+     {
+      "kind": "set",
+      "prop": "hs_lead_status",
+      "prop_label": "Lead Status",
+      "value": "ATTEMPTED_TO_CONTACT",
+      "value_label": "ATTEMPTED_TO_CONTACT",
+      "valid": false
+     },
+     {
+      "kind": "set",
+      "prop": "lifecyclestage",
+      "prop_label": "Lifecycle Stage",
+      "value": "marketingqualifiedlead",
+      "value_label": "MQL",
+      "valid": true
+     }
+    ],
+    "assigns": [
+     {
+      "role": "former",
+      "one": "a former team member",
+      "many": "former team members",
+      "group": "Former team members",
+      "note": "archived",
+      "people": 1,
+      "n": 1
+     }
+    ],
+    "writes_status": true,
+    "shared_with": [],
+    "status_last": "2025-06-04",
+    "still_running": false,
+    "status_changes_12m": 0,
+    "status_contacts_12m": 0,
+    "lists": [
+     {
+      "list": "393",
+      "role": "enrol",
+      "name": "Attempting to Contact - MQL Lifecycle Stage",
+      "size": 0,
+      "newest_add": null,
+      "newest_add_not_merge": null,
+      "merge_adds_after": 0
+     },
+     {
+      "list": "407",
+      "role": "enrol",
+      "name": "Attempted to Contact by a former team member",
+      "size": 248,
+      "newest_add": "2025-06-02T07:55:13.137Z",
+      "newest_add_not_merge": "2024-09-23T14:27:24.830Z",
+      "merge_adds_after": 7
+     }
+    ]
+   },
+   {
+    "id": "1627223286",
+    "name": "BARC RAG Buyers 1st Email Campaign - Downloads",
+    "on": true,
+    "n_actions": 3,
+    "steps": [
+     {
+      "kind": "set",
+      "prop": "tags",
+      "prop_label": "Tags",
+      "value": "BARC RAG 2024 Download",
+      "value_label": "BARC RAG 2024 Download",
+      "valid": true
+     },
+     {
+      "kind": "add_list",
+      "list": "519",
+      "list_name": "BARC RAG Downloads - Buyers"
+     },
+     {
+      "kind": "set",
+      "prop": "hs_lead_status",
+      "prop_label": "Lead Status",
+      "value": "Engaged Lead",
+      "value_label": "Engaged Lead",
+      "valid": true
+     }
+    ],
+    "assigns": [],
+    "writes_status": true,
+    "shared_with": [
+     "1627344080"
+    ],
+    "status_last": "2024-12-26",
+    "still_running": false,
+    "status_changes_12m": 0,
+    "status_contacts_12m": 0,
+    "lists": [
+     {
+      "list": "519",
+      "role": "output",
+      "name": "BARC RAG Downloads - Buyers",
+      "size": 5,
+      "newest_add": "2024-10-25T12:28:54.097Z",
+      "newest_add_not_merge": "2024-10-25T12:28:54.097Z",
+      "merge_adds_after": 0
+     }
+    ]
+   },
+   {
+    "id": "1627344080",
+    "name": "BARC RAG Influencers 1st Email Campaign - Downloads",
+    "on": true,
+    "n_actions": 3,
+    "steps": [
+     {
+      "kind": "set",
+      "prop": "tags",
+      "prop_label": "Tags",
+      "value": "BARC RAG 2024 Download",
+      "value_label": "BARC RAG 2024 Download",
+      "valid": true
+     },
+     {
+      "kind": "add_list",
+      "list": "518",
+      "list_name": "BARC RAG Downloads - Influencers"
+     },
+     {
+      "kind": "set",
+      "prop": "hs_lead_status",
+      "prop_label": "Lead Status",
+      "value": "Engaged Lead",
+      "value_label": "Engaged Lead",
+      "valid": true
+     }
+    ],
+    "assigns": [],
+    "writes_status": true,
+    "shared_with": [
+     "1627223286"
+    ],
+    "status_last": "2024-12-26",
+    "still_running": false,
+    "status_changes_12m": 0,
+    "status_contacts_12m": 0,
+    "lists": [
+     {
+      "list": "518",
+      "role": "output",
+      "name": "BARC RAG Downloads - Influencers",
+      "size": 25,
+      "newest_add": "2025-09-30T00:38:30.920Z",
+      "newest_add_not_merge": "2024-12-26T13:57:53.038Z",
+      "merge_adds_after": 2
+     }
+    ]
+   }
+  ],
+  "flows_scanned": 102,
+  "status_writing_flows": 8,
+  "changes_12m_from_these": 2643,
+  "changes_12m_elsewhere": 0,
+  "all_workflow_changes_from_these": true,
+  "elsewhere_by_key": {},
+  "running_days": 14,
+  "history_read": "2026-10-08"
+ },
+ "catchup": {
+  "read": "2026-10-13",
+  "wave1": {
+   "total": 578,
+   "eligible": 140,
+   "minus": {
+    "trial": 436,
+    "staff": 0,
+    "competitor": 0,
+    "commercial": 2
+   },
+   "in_nurture": 2082
+  },
+  "wave2": {
+   "total": 1314,
+   "eligible": 512,
+   "minus": {
+    "trial": 799,
+    "staff": 0,
+    "competitor": 0,
+    "commercial": 3
+   },
+   "ids": 6461,
+   "file_generated": "2026-10-07"
+  },
+  "clickers": {
+   "total": 32,
+   "eligible": 21,
+   "minus": {
+    "trial": 11,
+    "staff": 0,
+    "competitor": 0,
+    "commercial": 0
+   },
+   "re_engaged": 59
+  },
+  "competitor_list": "WEB0922 - SUPPRESS competitors (2026-08-21)"
+ },
+ "scanner": {
+  "certain": 12,
+  "likely": 2,
+  "uncertain": 3,
+  "human": 42,
+  "clickers": 59,
+  "look_like_scanners": 14,
+  "read": "2026-10-13"
+ },
+ "rules": [
+  {
+   "id": "R1",
+   "name": "Hand-raise",
+   "fires_on": "Contact Sales or Talk to an Engineer form, every submission",
+   "sets": "High Intent Lead, and lifecycle MQL if it is Lead or empty",
+   "only_from": "no status, Lead, Attempting to Engage, Engaged Lead or Unqualified - Discarded; not on the junk list",
+   "waiting_for": null
+  },
+  {
+   "id": "R2",
+   "name": "Engaged",
+   "fires_on": "a content download or slide-request form, every submission; joining through the Slack community app; and, once the scanner check is settled, a click in a nurture email",
+   "sets": "Engaged Lead",
+   "only_from": "no status, Lead or Attempting to Engage; not trial sign-ups",
+   "waiting_for": null
+  },
+  {
+   "id": "R3",
+   "name": "Sign-up",
+   "fires_on": "a webinar or newsletter form; a contact created by Zoom Events, Airmeet, an import or our scripts",
+   "sets": "Lead",
+   "only_from": "no status only; not trial sign-ups",
+   "waiting_for": null
+  },
+  {
+   "id": "R4",
+   "name": "Nurture start",
+   "fires_on": "the contact enters the nurture",
+   "sets": "Attempting to Engage",
+   "only_from": "no status or Lead; not trial sign-ups",
+   "waiting_for": null
+  },
+  {
+   "id": "R5",
+   "name": "Score",
+   "fires_on": "the score reaches High, every time",
+   "sets": "High Intent Lead",
+   "only_from": "no status, Lead, Attempting to Engage or Engaged Lead; not trial sign-ups or junk",
+   "waiting_for": null
+  },
+  {
+   "id": "R6",
+   "name": "Partner",
+   "fires_on": "Become a Partner form, every submission",
+   "sets": "Partner",
+   "only_from": "no status, Lead, Attempting to Engage, Engaged Lead or High Intent Lead",
+   "waiting_for": null
+  },
+  {
+   "id": "R7",
+   "name": "Junk",
+   "fires_on": "you add the contact to the junk list",
+   "sets": "Unqualified - Discarded",
+   "only_from": "any status except Sales Qualified Lead, Sales Accepted Lead, Customer or Partner",
+   "waiting_for": null
+  },
+  {
+   "id": "R8",
+   "name": "Deal",
+   "fires_on": "Intro Call Scheduled and the contact has an open sales deal",
+   "sets": "Sales Qualified Lead, through the existing meeting-outcome workflow, which also sets lifecycle and the outcome date",
+   "only_from": "Intro Call Scheduled, with no meeting outcome recorded",
+   "waiting_for": "the COO"
+  }
+ ],
+ "rule_guards": {
+  "lifecycle": [
+   "SQL",
+   "Opportunity",
+   "Customer"
+  ],
+  "rules": [
+   "Hand-raise",
+   "Engaged",
+   "Sign-up",
+   "Nurture start",
+   "Score",
+   "Partner"
+  ],
+  "unguarded": [
+   "Junk",
+   "Deal"
+  ]
+ },
+ "decisions": {
+  "date": "2026-10-13",
+  "decided": [
+   "Build and test the new rules, all switched off. Switching them on needs a separate go.",
+   "Trial sign-ups stay out of the lead funnel.",
+   "A disqualified contact who raises a hand again comes back as High Intent Lead, unless junked."
+  ],
+  "open": [
+   {
+    "who": "COO",
+    "parts": [
+     "switching on the deal rule (an AE creates a sales deal, the contact becomes Sales Qualified Lead), and stopping the meeting-outcome reminder tasks nobody answers."
+    ]
+   },
+   {
+    "who": "Scanner clicks",
+    "parts": [
+     {
+      "n": 14,
+      "key": "look_like_scanners"
+     },
+     " of the ",
+     {
+      "n": 59,
+      "key": "clickers"
+     },
+     " contacts whose nurture click HubSpot counted so far look like email security scanners, not people: ",
+     {
+      "n": 12,
+      "key": "certain"
+     },
+     " clicked before the email was delivered, in Internet Explorer, or twice within a second from two places or browsers, and ",
+     {
+      "n": 2,
+      "key": "likely"
+     },
+     " more clicked fast without opening it. HubSpot\u2019s bot filter passed them. Settle this before a click can move anyone to Engaged Lead."
+    ]
+   }
+  ]
+ },
  "gates_passed": [
   "G1 sums",
   "G2/G3 every route mapped",
@@ -890,7 +2074,35 @@ td { color: var(--ink-2); }
   "G6 bound to live re-reads",
   "G7 two reads agree",
   "G8 0 outcomes",
-  "G9 Customer overwrite present"
+  "G9 Customer overwrite present",
+  "W1 census totals",
+  "W2 every writer type known",
+  "W3 one app",
+  "W4 every user named",
+  "W5 user fields agree",
+  "W6 sums",
+  "S1 every action shown",
+  "S2 signatures unique",
+  "S3 lists read whole",
+  "S4 list roles",
+  "S6 two automation counts agree",
+  "C1 enumerations equal API totals",
+  "C2 wave-2 read whole",
+  "C3 trial values",
+  "C4 splits add up",
+  "C5 no double count",
+  "R1 eight rules, R8 waits",
+  "R2 no numbers in rule text",
+  "R3 labels from HubSpot",
+  "L1 pins unedited",
+  "L2 one history file",
+  "L3 label matches node",
+  "N1 every person mapped",
+  "N2 no name in a rendered field",
+  "N3 mapping matches owners",
+  "K1 scanner classes add up",
+  "K2 counted clicks passed the filter",
+  "K3/K4 sentence true of rows"
  ]
 }</script>
 <script>
@@ -925,6 +2137,23 @@ td { color: var(--ink-2); }
     if (!(key in M.people_to)) throw new Error('people_to has no "' + key + '"');
     return M.people_to[key];
   }
+  // the sections after the figures read through these, so a missing key fails loudly
+  function ruleWait(id) {
+    const r = D.rules.find(x => x.id === id);
+    if (!r || !r.waiting_for) throw new Error('rule "' + id + '" is not waiting for anyone');
+    return r.waiting_for;
+  }
+  function cu(pop, key) {
+    if (!(pop in D.catchup) || !(key in D.catchup[pop])) throw new Error('catchup has no "' + pop + '.' + key + '"');
+    return D.catchup[pop][key];
+  }
+  function wr(key) {
+    const t = D.writers.types.find(x => x.key === key);
+    if (!t) throw new Error('writers has no "' + key + '"');
+    return t;
+  }
+  const orList = a => a.length < 2 ? (a[0] || '') : a.slice(0, -1).join(', ') + ' or ' + a[a.length - 1];
+  const andList = a => a.length < 2 ? (a[0] || '') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
   const TOT = { before: D.node_totals_before, after: D.node_totals_after };
   const FLOWS = { before: D.before, after: D.after };
   const nt = (s, id) => TOT[s][id] || 0;
@@ -1374,11 +2603,11 @@ td { color: var(--ink-2); }
         conn: [{ wrap: 'SDR picks it up (people)' }],
         arcsB: [
           { from: 0, to: 2, label: [{ wrap: 'meeting booked (people)' }] },
-          { from: 2, to: 3, label: [{ wrap: 'AE creates a deal (automatic, proposed)' }] },
+          { from: 2, to: 3, waiting: true, label: [{ wrap: 'AE creates a deal (automatic)' }, { wrap: `waiting for ${ruleWait('R8')}`, c: 'quiet' }] },
         ],
         junk: [{ wrap: 'you junk it' }],
         bus: [{ wrap: 'sales disqualifies' }],
-        again: [{ wrap: 'raises a hand again (your decision)' }],
+        again: [{ wrap: 'raises a hand again, unless junked' }],
       },
     };
   }
@@ -1550,7 +2779,7 @@ td { color: var(--ink-2); }
     S.after.arcsB.forEach((a, i) => {
       const x0 = cx(a.from) + bw * 0.2, x1 = cx(a.to) - bw * 0.2;
       const lift = MV.rise * (a.to - a.from > 1 ? 1.2 : 1);
-      arrow(A, arc(x0, y2, x1, y2 - 1, -lift));
+      arrow(A, arc(x0, y2, x1, y2 - 1, -lift), a.waiting ? 'is-dashed' : '');
       drawLabel(A, arcsB[i], (x0 + x1) / 2, y2 - lift * 0.75 - 6 - arcsB[i].h, 'middle');
     });
     (function junkAndAgain() {
@@ -1558,7 +2787,7 @@ td { color: var(--ink-2); }
       const yu1 = u.y + u.h * 0.3, yu2 = u.y + u.h * 0.7;
       arrow(A, ortho([[h.x + bw, ya], [xo, ya], [xo, yu2], [u.x + bw + 1, yu2]], 8));
       drawLabel(A, junkL, xRR, ya - 5 - junkL.h, 'start');
-      arrow(A, ortho([[u.x + bw, yu1], [xi, yu1], [xi, yb], [h.x + bw + 1, yb]], 8), 'is-dashed');
+      arrow(A, ortho([[u.x + bw, yu1], [xi, yu1], [xi, yb], [h.x + bw + 1, yb]], 8));
       drawLabel(A, againL, xRR, yb + 4, 'start');
       const yBus = y2 + bh[1] + 12, xD = u.x + bw * 0.3;
       ['ATC', 'ATSI', 'ICS', 'SQL', 'SAL'].forEach(id => {
@@ -1584,11 +2813,11 @@ td { color: var(--ink-2); }
         `${fmt(mv('auto_customer_to_hil'))} customers relabelled ${label('HIL')}. ` +
         `Set by people this year: ${pc}. Meeting outcome loop: ${fmt(mv('meeting_outcomes_recorded'))} outcomes recorded.`;
     }
-    return `Proposed. ${label('LEAD')} to ${label('ATE')} on the first nurture email. To ${label('ENG')} on a real nurture click or content download. ` +
+    return `New rules. ${label('LEAD')} to ${label('ATE')} on the first nurture email. To ${label('ENG')} on a real nurture click or content download. ` +
       `To ${label('HIL')} on a Contact Sales or Talk to an Engineer form, or when the score reaches High. ` +
       'To Attempting to Contact when an SDR picks it up. To Intro Call Scheduled when a meeting is booked. ' +
-      `To Sales Qualified Lead when an AE creates a deal. To ${label('UNQ')} when you junk it or sales disqualifies. ` +
-      `A contact at ${label('UNQ')} who raises a hand again goes back to ${label('HIL')}, your decision.`;
+      `To Sales Qualified Lead when an AE creates a deal, waiting for ${ruleWait('R8')}. To ${label('UNQ')} when you junk it or sales disqualifies. ` +
+      `A contact at ${label('UNQ')} who raises a hand again goes back to ${label('HIL')}, unless junked.`;
   }
 
   // ---------- legends, notes, table, text ----------
@@ -1616,7 +2845,7 @@ td { color: var(--ink-2); }
     const items = s === 'before'
       ? [['', 'mv-ah', 'Move made by automation'], ['is-warn', 'mv-ah-warn', 'Backward move by automation'],
          ['is-muted', 'mv-ah-muted', 'Reset by our cleanup script'], ['is-muted is-dashed', 'mv-ah-muted', 'Not running', true]]
-      : [['', 'mv-ah', 'Proposed rule'], ['is-dashed', 'mv-ah', 'Your decision']];
+      : [['', 'mv-ah', 'New rule'], ['is-dashed', 'mv-ah', `Waiting for ${ruleWait('R8')}`]];
     items.forEach(it => {
       const li = document.createElement('li');
       const s2 = document.createElementNS(NS, 'svg');
@@ -1739,12 +2968,12 @@ td { color: var(--ink-2); }
   function renderMoveText(s) {
     document.getElementById('move-sub').textContent = s === 'before'
       ? `Contacts moved this year, from the status history of every contact read on ${fmtDate(D.sources.history.read)}. A contact moved twice counts once.`
-      : 'The proposed rules. Nothing runs on them yet, so there are no counts.';
+      : 'The new rules. Nothing runs on them yet, so there are no counts.';
     const rule = document.getElementById('move-rule');
     rule.replaceChildren();
     const tag = document.createElement('span');
     tag.className = 'tag';
-    tag.textContent = s === 'before' ? 'Today' : 'Proposed rule';
+    tag.textContent = s === 'before' ? 'Today' : 'New rules';
     rule.appendChild(tag);
     if (s === 'before') {
       rule.append('This year automation moved contacts backward ');
@@ -1755,16 +2984,281 @@ td { color: var(--ink-2); }
       b.textContent = fmt(mv('auto_to_sales_stages'));
       rule.append(b, ' times.');
     } else {
-      rule.append('Automation only moves contacts forward, and never touches anyone at Attempting to Contact or later, Customer or Partner.');
+      const G = D.rule_guards;
+      rule.append('Automation only moves contacts forward, and never touches anyone at Attempting to Contact or later, Customer or Partner. ' +
+        `It also leaves alone anyone whose lifecycle is ${orList(G.lifecycle)}. ` +
+        `${andList(G.unguarded)} are the exceptions; each starts with something a person does.`);
     }
     const svg = document.getElementById('moves');
     svg.setAttribute('aria-label', movesSummary(s));
   }
 
+  // =====================================================================================
+  // After the figures: what gets switched off, who else sets lead status, the new rules
+  // =====================================================================================
+  // Every workflow step kind the page can word, every writer row, every list role, every
+  // catch-up exclusion and every rule column. The build refuses to write if the JSON holds
+  // one these lists lack, so nothing the data says can drop off the page unnoticed.
+  const STEP_KINDS = ['set', 'set_owner', 'delay', 'wait_event', 'add_list', 'copy', 'branch'];
+  const WRITER_KEYS = ['workflows', 'people', 'bulk', 'imports', 'our_scripts', 'merges', 'mobile'];
+  const LIST_ROLES = ['enrol', 'output'];
+  const SPLIT_KEYS = ['trial', 'staff', 'competitor', 'commercial'];
+  const RULE_COLS = ['fires_on', 'sets', 'only_from'];
+
+  function node(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+  }
+  // strings as text, {n} as a bold number
+  function bolds(parent, parts) {
+    parts.forEach(p => {
+      if (typeof p === 'string') parent.appendChild(document.createTextNode(p));
+      else parent.appendChild(node('strong', null, fmt(p.n)));
+    });
+    return parent;
+  }
+  const upper = s => s.charAt(0).toUpperCase() + s.slice(1);
+  // lists of "item count" pairs: an item never breaks inside, and the dot stays with the item before it
+  const keep = s => String(s).replace(/ /g, ' ');
+  const SEP = ' · ';
+  const day = s => keep(fmtDate(s));   // a date never splits across lines
+  function fmtDayMonth(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ''));
+    return m ? `${Number(m[3])} ${MON[Number(m[2]) - 1]}` : String(s);
+  }
+  const span = () => `${day(D.writers.window.from)} to ${day(D.writers.window.to)}`;
+
+  function fillTable(id, cols, rows) {
+    const t = document.getElementById(id);
+    t.replaceChildren();
+    const head = node('thead'), hr = node('tr');
+    cols.forEach(c => {
+      const th = node('th', c.cls, c.label);
+      th.scope = 'col';
+      hr.appendChild(th);
+    });
+    head.appendChild(hr);
+    t.appendChild(head);
+    const body = node('tbody');
+    rows.forEach(r => {
+      const tr = node('tr', r.cls);
+      r.cells.forEach((c, i) => {
+        const cell = node(i === 0 ? 'th' : 'td', cols[i].cls);
+        if (i === 0) cell.scope = 'row';
+        else cell.dataset.label = cols[i].label;
+        if (c instanceof Node) cell.appendChild(c);
+        else cell.textContent = c;
+        tr.appendChild(cell);
+      });
+      body.appendChild(tr);
+    });
+    t.appendChild(body);
+  }
+
+  // ---------- what gets switched off ----------
+  const unitWord = (n, u) => n === 1 ? u.replace(/s$/, '') : u;
+  function stepText(s) {
+    switch (s.kind) {
+      case 'set': return `Sets ${s.prop_label} to ${s.value_label}` + (s.valid ? '' : ', which is not a valid option');
+      case 'set_owner': return `Sets ${s.prop_label} to ${s.who}${s.archived ? ' (archived)' : ''}`;
+      case 'delay': return `Waits ${fmt(s.amount)} ${unitWord(s.amount, s.unit)}`;
+      case 'wait_event': return `Waits up to ${fmt(s.amount)} ${unitWord(s.amount, s.unit)} for ${s.prop_label} to become ${orList(s.values)}`;
+      case 'add_list': return `Adds the contact to the list “${s.list_name}”`;
+      case 'copy': return `Copies an owner into ${s.target_label}`;
+    }
+    throw new Error('no wording for workflow step "' + s.kind + '"');
+  }
+  // a branch whose "otherwise" arm is only another branch reads as an else-if chain
+  function arms(br, chained) {
+    const out = [];
+    br.arms.forEach((a, i) => {
+      if (a.when === null && a.steps.length === 1 && a.steps[0].kind === 'branch') {
+        arms(a.steps[0], true).forEach(x => out.push(x));
+        return;
+      }
+      out.push({ lead: a.when === null ? 'Otherwise' : (chained || i > 0 ? `Otherwise, if ${a.when}` : `If ${a.when}`), steps: a.steps });
+    });
+    return out;
+  }
+  function stepList(steps) {
+    const ul = node('ul', 'steps');
+    steps.forEach(s => {
+      if (s.kind !== 'branch') { ul.appendChild(node('li', null, stepText(s))); return; }
+      arms(s, false).forEach(a => {
+        const li = node('li');
+        li.appendChild(node('span', 'if', a.lead + ':'));
+        li.appendChild(stepList(a.steps));
+        ul.appendChild(li);
+      });
+    });
+    return ul;
+  }
+  function lastOutput(f) {
+    const box = node('div');
+    if (f.writes_status) {
+      const p = node('p');
+      if (f.still_running) bolds(p, ['Still running. ', { n: f.status_changes_12m }, ' changes in the window.']);
+      else if (!f.status_last) p.textContent = 'Never set a lead status in the history.';
+      else if (f.status_changes_12m) bolds(p, [`Last set a lead status ${day(f.status_last)}. `, { n: f.status_changes_12m }, ' changes in the window.']);
+      else p.textContent = `Last set a lead status ${day(f.status_last)}, before the window.`;
+      if (f.shared_with.length) p.append(' Its lead-status step is the same as its twin’s, so the two are counted together.');
+      box.appendChild(p);
+    }
+    f.lists.forEach(x => {
+      if (LIST_ROLES.indexOf(x.role) < 0) throw new Error('no wording for list role "' + x.role + '"');
+      const p = node('p');
+      let s = `${x.role === LIST_ROLES[0] ? 'Enrolment list' : 'The list it adds to'}, “${x.name}”: `;
+      if (!x.size) s += 'empty.';
+      else if (x.newest_add_not_merge) s += `newest member added ${day(x.newest_add_not_merge)}.`;
+      else s += 'every member came from a contact merge.';
+      p.textContent = s;
+      // a workflow never adds to its own enrolment list, so "not the workflow" is only said of the list it adds to
+      if (x.merge_adds_after) {
+        bolds(p, [' ', { n: x.merge_adds_after }, x.role === LIST_ROLES[0] ? ' later members came from contact merges.'
+          : ' later members came from contact merges, not the workflow.']);
+      }
+      box.appendChild(p);
+    });
+    return box;
+  }
+  function renderSwitchOff() {
+    const S = D.switch_off, F = S.flows, on = F.filter(f => f.on).length;
+    const sub = document.getElementById('off-sub');
+    sub.replaceChildren();
+    bolds(sub, [{ n: F.length }, ' workflows go off in the same run that switches the new rules on. ']);
+    if (on === F.length) bolds(sub, ['All ', { n: on }, ' were on']);
+    else bolds(sub, [{ n: on }, ' of ', { n: F.length }, ' were on']);
+    sub.append(` when read on ${day(D.sources.live.read)}. Change counts cover ${span()}, from the status history.`);
+    fillTable('off-table', [{ label: 'Workflow' }, { label: 'What it does' }, { label: 'Last output' }], F.map(f => {
+      const name = node('span', null, f.name);
+      name.appendChild(node('span', 'sub-line', `${f.on ? 'On' : 'Off'} · workflow ${f.id}`));
+      const does = node('div');
+      // the steps say "a former team member" on each branch; when they are different people, say how many
+      f.assigns.filter(a => a.people > 1).forEach(a => {
+        does.appendChild(bolds(node('p'), ['Assigns contacts to ', { n: a.people }, ` ${a.many}${a.note ? ` (${a.note})` : ''}.`]));
+      });
+      does.appendChild(stepList(f.steps));
+      return { cells: [name, does, lastOutput(f)] };
+    }));
+    const all = document.getElementById('off-all');
+    all.replaceChildren(node('span', 'tag', 'Workflow changes'));
+    const wf = wr('workflows').n;
+    if (S.all_workflow_changes_from_these) {
+      bolds(all, ['All ', { n: wf }, ' lead-status changes a workflow made in the window came from these ', { n: F.length }, '.']);
+    } else {
+      bolds(all, [{ n: S.changes_12m_from_these }, ' of the ', { n: wf }, ' lead-status changes a workflow made in the window came from these ',
+        { n: F.length }, '; ', { n: S.changes_12m_elsewhere }, ' came from elsewhere.']);
+    }
+    const note = document.getElementById('off-note');
+    note.replaceChildren();
+    bolds(note, ['Still running means on when read, with a lead-status change in the last ', { n: S.running_days },
+      ` days of the status history, which ends ${day(S.history_read)}. HubSpot’s history does not name the workflow behind a change, ` +
+      'so each change is matched by the step that made it. Of the ', { n: S.flows_scanned }, ' workflows read, no other has a matching step.']);
+    if (F.some(f => f.shared_with.length)) note.append(' The two with identical steps are counted together.');
+  }
+
+  // ---------- who else sets lead status ----------
+  // People are shown by role, never by name: the page is public. The build refuses a page with a name on it.
+  const headcount = r => `${fmt(r.people)} ${r.people === 1 ? 'person' : 'people'}${r.note ? `, ${r.note}` : ''}`;
+  function byRole(t) {
+    const by = t.by_role || [];
+    if (by.length === 1 && by[0].people === 1) return `by ${by[0].one}’s account`;
+    return by.length ? 'by ' + andList(by.map(b => b.people === 1 ? b.one : `${fmt(b.people)} ${b.many}`)) : '';
+  }
+  function whoLine(t) {
+    if (t.key === 'workflows') {
+      return D.switch_off.all_workflow_changes_from_these ? 'All from the workflows above'
+        : `${fmt(D.switch_off.changes_12m_from_these)} from the workflows above`;
+    }
+    if (t.key === 'imports') return `${fmt(t.imports)} imports, ` + (t.same_account_as_bulk ? 'by the same account as the bulk edits' : byRole(t));
+    const s = byRole(t);
+    return s ? upper(s) : '';
+  }
+  const valueList = vs => vs.map(v => keep(`${v.label}${v.valid ? '' : ' (not a valid option)'} ${fmt(v.n)}`)).join(SEP);
+  function writerRow(label, line, n, values, last) {
+    const name = node('span', null, label);
+    if (line) name.appendChild(node('span', 'sub-line', line));
+    return { cells: [name, fmt(n), valueList(values), fmtDate(last)] };
+  }
+  function renderWriters() {
+    const W = D.writers;
+    WRITER_KEYS.forEach(wr);
+    const sub = document.getElementById('who-sub');
+    sub.replaceChildren();
+    bolds(sub, [`Every change to lead status from ${span()}, `, { n: W.total },
+      ` in all, by who made it. From the status history of every contact, read ${day(D.sources.writers.read)}.`]);
+    const rows = [];
+    W.types.filter(t => t.n > 0).forEach(t => {
+      if (t.key === 'people') {   // one row per role
+        wr('people').roles.forEach(r => rows.push(writerRow(`${r.group} (${headcount(r)})`, 'Editing contacts in HubSpot', r.n, r.values, r.last)));
+        return;
+      }
+      rows.push(writerRow(t.label, whoLine(t), t.n, t.values, t.last));
+    });
+    fillTable('who-table', [{ label: 'Who' }, { label: 'Changes', cls: 'num' }, { label: 'What they set' }, { label: 'Last change', cls: 'nowrap' }], rows);
+    const none = document.getElementById('who-none');
+    none.replaceChildren(node('span', 'tag', 'Nothing else'));
+    none.append(`No form, no other app, no sales sequence and not HubSpot’s Leads object changed lead status from ${span()}.`);
+  }
+
+  // ---------- the new rules and the one-off catch-up ----------
+  function minusPhrase(c) {
+    const words = { trial: 'trial sign-ups', staff: 'Vespa staff', competitor: 'competitors',
+      commercial: `with a lifecycle of ${orList(D.rule_guards.lifecycle)}` };
+    Object.keys(c.minus).forEach(k => { if (SPLIT_KEYS.indexOf(k) < 0 || !(k in words)) throw new Error('no wording for catch-up part "' + k + '"'); });
+    const parts = SPLIT_KEYS.filter(k => c.minus[k] > 0).map(k => `${fmt(c.minus[k])} ${words[k]}`);
+    return parts.length ? `, minus ${andList(parts)}` : '';
+  }
+  function renderRules() {
+    const R = D.rules;
+    const sub = document.getElementById('rules-sub');
+    sub.replaceChildren();
+    bolds(sub, ['What each of the ', { n: R.length }, ' rules listens for, what it sets, and which contacts it may change. A contact at any other status is left alone.']);
+    fillTable('rules-table', [{ label: 'Rule' }, { label: 'Fires on' }, { label: 'Sets' }, { label: 'Only from' }], R.map(r => {
+      const name = node('span', null, r.name);
+      if (r.waiting_for) {
+        name.appendChild(document.createElement('br'));
+        name.appendChild(node('span', 'wait-tag', `Waiting for ${r.waiting_for}`));
+      }
+      return { cls: r.waiting_for ? 'is-waiting' : null, cells: [name].concat(RULE_COLS.map(k => {
+        if (!r[k]) throw new Error('rule ' + r.id + ' has no "' + k + '"');
+        return upper(r[k]);
+      })) };
+    }));
+    const G = D.rule_guards;
+    document.getElementById('rules-note').textContent =
+      `Every rule except ${andList(G.unguarded)} also skips Vespa staff, competitors and anyone whose lifecycle is ${orList(G.lifecycle)}.`;
+    const C = D.catchup, cp = document.getElementById('catchup');
+    cp.replaceChildren(node('span', 'tag', 'One-off catch-up'));
+    bolds(cp, ['After switch-on, one run moves ', { n: cu('wave1', 'eligible') },
+      ` contacts already in the nurture from no status or ${label('LEAD')} to ${label('ATE')}: `, { n: cu('wave1', 'total') },
+      ` at those statuses${minusPhrase(C.wave1)}. The second wave (dry run of ${day(cu('wave2', 'file_generated'))}) brings `,
+      { n: cu('wave2', 'eligible') }, ` more to ${label('ATE')} when it loads: `, { n: cu('wave2', 'total') },
+      ` at those statuses${minusPhrase(C.wave2)}. `, { n: cu('clickers', 'eligible') },
+      ` contacts who clicked a nurture email and sit at no status, ${label('LEAD')} or ${label('ATE')} would move to ${label('ENG')}, ` +
+      'pending the scanner-click question: ', { n: cu('clickers', 'total') }, `${minusPhrase(C.clickers)}. Counts read ${day(C.read)}.`]);
+  }
+
+  // ---------- footer ----------
+  function renderFooter() {
+    const d = D.decisions;
+    document.getElementById('decided-title').textContent = `Decided ${fmtDayMonth(d.date)}`;
+    document.getElementById('decided').replaceChildren(...d.decided.map(t => node('li', null, t)));
+    document.getElementById('still-open').replaceChildren(...d.open.map(o => {
+      const li = node('li');
+      li.appendChild(node('strong', null, `${o.who}: `));
+      return bolds(li, o.parts);   // counts come from the data (the scanner section), never typed
+    }));
+  }
+
   function staticTexts() {
     document.getElementById('asof').textContent = `${D.population} · ${fmt(D.total)} contacts · as of ${fmtDate(D.as_of)}`;
     document.getElementById('source').textContent =
-      `Generated ${fmtStamp(D.generated_at)} · entry routes: ${D.sources.entry.read} · status history: ${D.sources.history.read} · numbers: .claude/state/lead_status_flow.json`;
+      `Generated ${fmtStamp(D.generated_at)} · entry routes: ${D.sources.entry.read} · status history: ${D.sources.history.read} · ` +
+      `workflows, lists, owners and catch-up: ${D.sources.live.read} · scanner clicks: ${D.sources.scanner.read} · ` +
+      'numbers: .claude/state/lead_status_flow.json';
   }
 
   function hints() {
@@ -1820,6 +3314,10 @@ td { color: var(--ink-2); }
     staticTexts();
     landLegend();
     renderTable();
+    renderSwitchOff();
+    renderWriters();
+    renderRules();
+    renderFooter();
     state = location.hash === '#after' ? 'after' : 'before';
     page.dataset.state = state;
     renderAll(true);
