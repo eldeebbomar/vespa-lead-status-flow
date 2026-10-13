@@ -396,7 +396,7 @@ td { color: var(--ink-2); }
 .steps li { margin: 1px 0; }
 .steps li::marker { color: var(--muted); }
 .steps .if { color: var(--ink); font-weight: 600; }
-.wait-tag {
+.state-tag {
   display: inline-block;
   margin-top: 4px;
   padding: 1px 8px;
@@ -408,7 +408,7 @@ td { color: var(--ink-2); }
   color: var(--ink);
   white-space: nowrap;
 }
-tr.is-waiting td { color: var(--muted); }
+tr.is-parked td { color: var(--muted); }
 .note { margin: 10px 0 0; max-width: 84ch; font-size: 13px; color: var(--muted); text-wrap: pretty; }
 .decide.open { list-style: none; padding-left: 0; }
 .decide.open strong { color: var(--ink); font-weight: 650; }
@@ -528,13 +528,14 @@ tr.is-waiting td { color: var(--muted); }
     </div>
     <table class="datatable" id="rules-table" aria-labelledby="rules-title"></table>
     <p class="note" id="rules-note"></p>
+    <div id="rule-notes"></div>
     <p class="rule" id="catchup"></p>
   </section>
 
   <footer class="foot">
     <h2 id="decided-title">Decided</h2>
     <ol class="decide" id="decided"></ol>
-    <h2>Still open</h2>
+    <h2 id="open-title">Still open</h2>
     <ul class="decide open" id="still-open"></ul>
     <p class="source" id="source"></p>
   </footer>
@@ -543,7 +544,7 @@ tr.is-waiting td { color: var(--muted); }
 <div class="tip" id="tip" role="tooltip" hidden></div>
 
 <script type="application/json" id="flow-data">{
- "generated_at": "2026-10-13T11:24:38+00:00",
+ "generated_at": "2026-10-13T17:34:02+00:00",
  "as_of": "2026-10-09",
  "population": "Contacts created 1 Jan - 9 Oct 2026",
  "sources": {
@@ -1918,17 +1919,6 @@ tr.is-waiting td { color: var(--muted); }
    "ids": 6461,
    "file_generated": "2026-10-07"
   },
-  "clickers": {
-   "total": 32,
-   "eligible": 21,
-   "minus": {
-    "trial": 11,
-    "staff": 0,
-    "competitor": 0,
-    "commercial": 0
-   },
-   "re_engaged": 59
-  },
   "competitor_list": "WEB0922 - SUPPRESS competitors (2026-08-21)"
  },
  "scanner": {
@@ -1947,15 +1937,17 @@ tr.is-waiting td { color: var(--muted); }
    "fires_on": "Contact Sales or Talk to an Engineer form, every submission",
    "sets": "High Intent Lead, and lifecycle MQL if it is Lead or empty",
    "only_from": "no status, Lead, Attempting to Engage, Engaged Lead or Unqualified - Discarded; not on the junk list",
-   "waiting_for": null
+   "state": null,
+   "state_label": null
   },
   {
    "id": "R2",
    "name": "Engaged",
-   "fires_on": "a content download or slide-request form, every submission; joining through the Slack community app; and, once the scanner check is settled, a click in a nurture email",
+   "fires_on": "a content download or slide-request form, every submission; joining through the Slack community app",
    "sets": "Engaged Lead",
    "only_from": "no status, Lead or Attempting to Engage; not trial sign-ups",
-   "waiting_for": null
+   "state": null,
+   "state_label": null
   },
   {
    "id": "R3",
@@ -1963,7 +1955,8 @@ tr.is-waiting td { color: var(--muted); }
    "fires_on": "a webinar or newsletter form; a contact created by Zoom Events, Airmeet, an import or our scripts",
    "sets": "Lead",
    "only_from": "no status only; not trial sign-ups",
-   "waiting_for": null
+   "state": null,
+   "state_label": null
   },
   {
    "id": "R4",
@@ -1971,7 +1964,8 @@ tr.is-waiting td { color: var(--muted); }
    "fires_on": "the contact enters the nurture",
    "sets": "Attempting to Engage",
    "only_from": "no status or Lead; not trial sign-ups",
-   "waiting_for": null
+   "state": null,
+   "state_label": null
   },
   {
    "id": "R5",
@@ -1979,7 +1973,8 @@ tr.is-waiting td { color: var(--muted); }
    "fires_on": "the score reaches High, every time",
    "sets": "High Intent Lead",
    "only_from": "no status, Lead, Attempting to Engage or Engaged Lead; not trial sign-ups or junk",
-   "waiting_for": null
+   "state": null,
+   "state_label": null
   },
   {
    "id": "R6",
@@ -1987,7 +1982,8 @@ tr.is-waiting td { color: var(--muted); }
    "fires_on": "Become a Partner form, every submission",
    "sets": "Partner",
    "only_from": "no status, Lead, Attempting to Engage, Engaged Lead or High Intent Lead",
-   "waiting_for": null
+   "state": null,
+   "state_label": null
   },
   {
    "id": "R7",
@@ -1995,7 +1991,8 @@ tr.is-waiting td { color: var(--muted); }
    "fires_on": "you add the contact to the junk list",
    "sets": "Unqualified - Discarded",
    "only_from": "any status except Sales Qualified Lead, Sales Accepted Lead, Customer or Partner",
-   "waiting_for": null
+   "state": null,
+   "state_label": null
   },
   {
    "id": "R8",
@@ -2003,7 +2000,8 @@ tr.is-waiting td { color: var(--muted); }
    "fires_on": "Intro Call Scheduled and the contact has an open sales deal",
    "sets": "Sales Qualified Lead, through the existing meeting-outcome workflow, which also sets lifecycle and the outcome date",
    "only_from": "Intro Call Scheduled, with no meeting outcome recorded",
-   "waiting_for": "the COO"
+   "state": "parked",
+   "state_label": "Parked for later"
   }
  ],
  "rule_guards": {
@@ -2025,46 +2023,54 @@ tr.is-waiting td { color: var(--muted); }
    "Deal"
   ]
  },
+ "rule_notes": [
+  {
+   "tag": "Nurture clicks",
+   "parts": [
+    "Clicks in nurture emails do not change lead status (decided ",
+    {
+     "date": "2026-10-13"
+    },
+    "). They still move people through the nurture and raise the score, as today."
+   ]
+  },
+  {
+   "tag": null,
+   "parts": [
+    "Why: ",
+    {
+     "n": 14,
+     "key": "look_like_scanners"
+    },
+    " of the ",
+    {
+     "n": 59,
+     "key": "clickers"
+    },
+    " contacts whose nurture click HubSpot counted so far look like email security scanners, not people. ",
+    {
+     "n": 12,
+     "key": "certain"
+    },
+    " clicked before the email was delivered, in Internet Explorer, or twice within a second from two places or browsers, and ",
+    {
+     "n": 2,
+     "key": "likely"
+    },
+    " more clicked fast without opening it. HubSpot\u2019s bot filter passed them."
+   ]
+  }
+ ],
  "decisions": {
   "date": "2026-10-13",
   "decided": [
    "Build and test the new rules, all switched off. Switching them on needs a separate go.",
    "Trial sign-ups stay out of the lead funnel.",
-   "A disqualified contact who raises a hand again comes back as High Intent Lead, unless junked."
+   "A disqualified contact who raises a hand again comes back as High Intent Lead, unless junked.",
+   "Clicks in nurture emails stay as they are for now: no click rule, no scanner check and no click catch-up.",
+   "The deal rule (an AE creates a sales deal, the contact becomes Sales Qualified Lead) is built but stays switched off. SQL is for later."
   ],
-  "open": [
-   {
-    "who": "COO",
-    "parts": [
-     "switching on the deal rule (an AE creates a sales deal, the contact becomes Sales Qualified Lead), and stopping the meeting-outcome reminder tasks nobody answers."
-    ]
-   },
-   {
-    "who": "Scanner clicks",
-    "parts": [
-     {
-      "n": 14,
-      "key": "look_like_scanners"
-     },
-     " of the ",
-     {
-      "n": 59,
-      "key": "clickers"
-     },
-     " contacts whose nurture click HubSpot counted so far look like email security scanners, not people: ",
-     {
-      "n": 12,
-      "key": "certain"
-     },
-     " clicked before the email was delivered, in Internet Explorer, or twice within a second from two places or browsers, and ",
-     {
-      "n": 2,
-      "key": "likely"
-     },
-     " more clicked fast without opening it. HubSpot\u2019s bot filter passed them. Settle this before a click can move anyone to Engaged Lead."
-    ]
-   }
-  ]
+  "open": []
  },
  "gates_passed": [
   "G1 sums",
@@ -2138,11 +2144,13 @@ tr.is-waiting td { color: var(--muted); }
     return M.people_to[key];
   }
   // the sections after the figures read through these, so a missing key fails loudly
-  function ruleWait(id) {
+  // a rule's state as the page words it ("Parked for later"), from the data
+  function ruleState(id) {
     const r = D.rules.find(x => x.id === id);
-    if (!r || !r.waiting_for) throw new Error('rule "' + id + '" is not waiting for anyone');
-    return r.waiting_for;
+    if (!r || !r.state_label) throw new Error('rule "' + id + '" has no state');
+    return r.state_label;
   }
+  const lower = s => s.charAt(0).toLowerCase() + s.slice(1);
   function cu(pop, key) {
     if (!(pop in D.catchup) || !(key in D.catchup[pop])) throw new Error('catchup has no "' + pop + '.' + key + '"');
     return D.catchup[pop][key];
@@ -2597,13 +2605,13 @@ tr.is-waiting td { color: var(--muted); }
       after: {
         arcsA: [
           { from: 0, label: [{ wrap: 'first nurture email' }] },
-          { from: 1, label: [{ wrap: 'real nurture click or content download' }] },
+          { from: 1, label: [{ wrap: 'content download or slide request' }] },
           { from: 2, label: [{ wrap: 'Contact Sales or Talk to an Engineer form, or score reaches High' }] },
         ],
         conn: [{ wrap: 'SDR picks it up (people)' }],
         arcsB: [
           { from: 0, to: 2, label: [{ wrap: 'meeting booked (people)' }] },
-          { from: 2, to: 3, waiting: true, label: [{ wrap: 'AE creates a deal (automatic)' }, { wrap: `waiting for ${ruleWait('R8')}`, c: 'quiet' }] },
+          { from: 2, to: 3, parked: true, label: [{ wrap: 'AE creates a deal (automatic)' }, { wrap: lower(ruleState('R8')), c: 'quiet' }] },
         ],
         junk: [{ wrap: 'you junk it' }],
         bus: [{ wrap: 'sales disqualifies' }],
@@ -2779,7 +2787,7 @@ tr.is-waiting td { color: var(--muted); }
     S.after.arcsB.forEach((a, i) => {
       const x0 = cx(a.from) + bw * 0.2, x1 = cx(a.to) - bw * 0.2;
       const lift = MV.rise * (a.to - a.from > 1 ? 1.2 : 1);
-      arrow(A, arc(x0, y2, x1, y2 - 1, -lift), a.waiting ? 'is-dashed' : '');
+      arrow(A, arc(x0, y2, x1, y2 - 1, -lift), a.parked ? 'is-dashed' : '');
       drawLabel(A, arcsB[i], (x0 + x1) / 2, y2 - lift * 0.75 - 6 - arcsB[i].h, 'middle');
     });
     (function junkAndAgain() {
@@ -2813,10 +2821,10 @@ tr.is-waiting td { color: var(--muted); }
         `${fmt(mv('auto_customer_to_hil'))} customers relabelled ${label('HIL')}. ` +
         `Set by people this year: ${pc}. Meeting outcome loop: ${fmt(mv('meeting_outcomes_recorded'))} outcomes recorded.`;
     }
-    return `New rules. ${label('LEAD')} to ${label('ATE')} on the first nurture email. To ${label('ENG')} on a real nurture click or content download. ` +
+    return `New rules. ${label('LEAD')} to ${label('ATE')} on the first nurture email. To ${label('ENG')} on a content download or slide request. ` +
       `To ${label('HIL')} on a Contact Sales or Talk to an Engineer form, or when the score reaches High. ` +
       'To Attempting to Contact when an SDR picks it up. To Intro Call Scheduled when a meeting is booked. ' +
-      `To Sales Qualified Lead when an AE creates a deal, waiting for ${ruleWait('R8')}. To ${label('UNQ')} when you junk it or sales disqualifies. ` +
+      `To Sales Qualified Lead when an AE creates a deal, ${lower(ruleState('R8'))}. To ${label('UNQ')} when you junk it or sales disqualifies. ` +
       `A contact at ${label('UNQ')} who raises a hand again goes back to ${label('HIL')}, unless junked.`;
   }
 
@@ -2845,7 +2853,7 @@ tr.is-waiting td { color: var(--muted); }
     const items = s === 'before'
       ? [['', 'mv-ah', 'Move made by automation'], ['is-warn', 'mv-ah-warn', 'Backward move by automation'],
          ['is-muted', 'mv-ah-muted', 'Reset by our cleanup script'], ['is-muted is-dashed', 'mv-ah-muted', 'Not running', true]]
-      : [['', 'mv-ah', 'New rule'], ['is-dashed', 'mv-ah', `Waiting for ${ruleWait('R8')}`]];
+      : [['', 'mv-ah', 'New rule'], ['is-dashed', 'mv-ah', ruleState('R8')]];
     items.forEach(it => {
       const li = document.createElement('li');
       const s2 = document.createElementNS(NS, 'svg');
@@ -3011,10 +3019,11 @@ tr.is-waiting td { color: var(--muted); }
     if (text !== undefined && text !== null) e.textContent = text;
     return e;
   }
-  // strings as text, {n} as a bold number
+  // strings as text, {n} as a bold number, {date} as a day and month
   function bolds(parent, parts) {
     parts.forEach(p => {
       if (typeof p === 'string') parent.appendChild(document.createTextNode(p));
+      else if (p.date) parent.appendChild(document.createTextNode(keep(fmtDayMonth(p.date))));
       else parent.appendChild(node('strong', null, fmt(p.n)));
     });
     return parent;
@@ -3218,11 +3227,11 @@ tr.is-waiting td { color: var(--muted); }
     bolds(sub, ['What each of the ', { n: R.length }, ' rules listens for, what it sets, and which contacts it may change. A contact at any other status is left alone.']);
     fillTable('rules-table', [{ label: 'Rule' }, { label: 'Fires on' }, { label: 'Sets' }, { label: 'Only from' }], R.map(r => {
       const name = node('span', null, r.name);
-      if (r.waiting_for) {
+      if (r.state_label) {
         name.appendChild(document.createElement('br'));
-        name.appendChild(node('span', 'wait-tag', `Waiting for ${r.waiting_for}`));
+        name.appendChild(node('span', 'state-tag', r.state_label));
       }
-      return { cls: r.waiting_for ? 'is-waiting' : null, cells: [name].concat(RULE_COLS.map(k => {
+      return { cls: r.state ? 'is-parked' : null, cells: [name].concat(RULE_COLS.map(k => {
         if (!r[k]) throw new Error('rule ' + r.id + ' has no "' + k + '"');
         return upper(r[k]);
       })) };
@@ -3230,15 +3239,19 @@ tr.is-waiting td { color: var(--muted); }
     const G = D.rule_guards;
     document.getElementById('rules-note').textContent =
       `Every rule except ${andList(G.unguarded)} also skips Vespa staff, competitors and anyone whose lifecycle is ${orList(G.lifecycle)}.`;
+    // plain lines from the data: a tagged line reads like the other rule lines, an untagged one as a note
+    document.getElementById('rule-notes').replaceChildren(...D.rule_notes.map(n => {
+      const p = node('p', n.tag ? 'rule' : 'note');
+      if (n.tag) p.appendChild(node('span', 'tag', n.tag));
+      return bolds(p, n.parts);
+    }));
     const C = D.catchup, cp = document.getElementById('catchup');
     cp.replaceChildren(node('span', 'tag', 'One-off catch-up'));
     bolds(cp, ['After switch-on, one run moves ', { n: cu('wave1', 'eligible') },
       ` contacts already in the nurture from no status or ${label('LEAD')} to ${label('ATE')}: `, { n: cu('wave1', 'total') },
       ` at those statuses${minusPhrase(C.wave1)}. The second wave (dry run of ${day(cu('wave2', 'file_generated'))}) brings `,
       { n: cu('wave2', 'eligible') }, ` more to ${label('ATE')} when it loads: `, { n: cu('wave2', 'total') },
-      ` at those statuses${minusPhrase(C.wave2)}. `, { n: cu('clickers', 'eligible') },
-      ` contacts who clicked a nurture email and sit at no status, ${label('LEAD')} or ${label('ATE')} would move to ${label('ENG')}, ` +
-      'pending the scanner-click question: ', { n: cu('clickers', 'total') }, `${minusPhrase(C.clickers)}. Counts read ${day(C.read)}.`]);
+      ` at those statuses${minusPhrase(C.wave2)}. Counts read ${day(C.read)}.`]);
   }
 
   // ---------- footer ----------
@@ -3251,6 +3264,9 @@ tr.is-waiting td { color: var(--muted); }
       li.appendChild(node('strong', null, `${o.who}: `));
       return bolds(li, o.parts);   // counts come from the data (the scanner section), never typed
     }));
+    // nothing open: no heading and no empty list (items are never invented to fill it)
+    document.getElementById('open-title').hidden = !d.open.length;
+    document.getElementById('still-open').hidden = !d.open.length;
   }
 
   function staticTexts() {
